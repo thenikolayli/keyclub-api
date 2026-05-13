@@ -1,0 +1,41 @@
+<x-main>
+  <table
+    role="presentation"
+    class="max-w-[600px] mx-auto"
+    cellpadding="0"
+    cellspacing="0"
+  >
+    <tr>
+      <td
+        class="w-full h-4 align-top bg-yellow-300 rounded-t-lg border-2 border-zinc-200"
+      ></td>
+    </tr>
+    <tr class="w-full bg-zinc-800">
+      <td class="py-2 text-center text-xl font-bold text-stone-50">
+        Hello, @{{ .FirstName }}!
+      </td>
+    </tr>
+    <tr class="w-full bg-stone-50">
+      <td class="p-8 text-center text-center text-zinc-800">
+        <p class="text-sm text-zinc-800">
+          You've been invited to join the Henry M. Jackson Key Club leadership!
+          Please click the button below to create your account and register a
+          passkey. You are invited as a @{{ .RoleLevelString }} and have 24
+          hours until the invitation expires.
+        </p>
+        <a
+          href="@{{ .MagicLink }}"
+          class="bg-yellow-300 px-4 py-2 rounded text-zinc-800 font-bold no-underline text-lg"
+          target="_blank"
+          >Accept invite</a
+        >
+      </td>
+    </tr>
+    <tr class="w-full bg-zinc-800 rounded-b-lg">
+      <td class="py-2 text-center text-sm text-zinc-400">
+        This is an automated message from the JHS Key Club. Please do not reply
+        to this email.
+      </td>
+    </tr>
+  </table>
+</x-main>

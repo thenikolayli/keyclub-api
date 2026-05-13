@@ -1,0 +1,20 @@
+<!doctype html>
+<html
+  lang="en"
+  xmlns:v="urn:schemas-microsoft-com:vml"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@{{ .Subject }}</title>
+    <style>
+      @tailwind components;
+      @tailwind utilities;
+    </style>
+  </head>
+  <body class="font-sans w-full bg-transparent">
+    <yield />
+  </body>
+</html>
