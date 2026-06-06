@@ -1,16 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"keyclub-api/auth"
+	"log"
+
 	"keyclub-api/internal"
 )
 
 func main() {
-	fmt.Println("Hello, World!")
 	app := internal.NewApp()
+	defer app.DB.Close()
 
-	if err := auth.SendInvite("nikolay.li2008@gmail.com", "Nikolay", 0, app.Config); err != nil {
-		fmt.Println("Error sending invite:", err)
+	if err := app.Start(":8000"); err != nil {
+		log.Fatal(err)
 	}
 }

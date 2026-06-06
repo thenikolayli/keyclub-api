@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"keyclub-api/email"
 	"log"
 	"net/smtp"
 	"os"
@@ -10,10 +11,11 @@ import (
 )
 
 type Config struct {
-	SMTPConfig SMTPConfig
+	SMTPConfig email.SMTPConfig
+	DBConfig   DBConfig
 
-	InviteExpiryDuration time.Duration
-	EmailTemplatePath    string
+	PendingLoginExpiryDuration time.Duration
+	InviteExpiryDuration       time.Duration
 }
 
 func LoadConfig() Config {
@@ -22,13 +24,19 @@ func LoadConfig() Config {
 	}
 
 	return Config{
-		SMTPConfig: SMTPConfig{
-			Address: "smtp.gmail.com:587",
-			User:    "jhskeyclub21@gmail.com",
-			Auth:    smtp.PlainAuth("", "jhskeyclub21@gmail.com", os.Getenv("SMTP_PASSWORD"), "smtp.gmail.com"),
+		SMTPConfig: email.SMTPConfig{
+			Address:           "smtp.gmail.com:587",
+			User:              "jhskeyclub21@gmail.com",
+			Auth:              smtp.PlainAuth("", "jhskeyclub21@gmail.com", os.Getenv("SMTP_PASSWORD"), "smtp.gmail.com"),
+			EmailTemplatePath: "maizzle/build_production",
 		},
 
-		InviteExpiryDuration: 24 * time.Hour,
-		EmailTemplatePath:    os.Getenv("EMAIL_TEMPLATE_PATH"),
+		DBConfig: DBConfig{
+			SQLitePath:     os.Getenv("DB_SQLITE_PATH"),
+			MigrationsPath: os.Getenv("DB_MIGRATIONS_PATH"),
+		},
+
+		PendingLoginExpiryDuration: 1 * time.Hour,
+		InviteExpiryDuration:       24 * time.Hour,
 	}
 }
