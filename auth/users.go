@@ -10,7 +10,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var UserNotFoundError = errors.New("user not found")
+var UserNotFoundError = errors.New("User not found")
+var PendingLoginNotFoundError = errors.New("Pending login not found")
+var PendingLoginExpiredError = errors.New("Pending login expired")
+var PendingLoginAlreadyUsedError = errors.New("Pending login already used")
 
 // Checks if a user with the given email exists
 func UserExists(ctx context.Context, email string, db *sqlx.DB) (bool, error) {
@@ -86,4 +89,27 @@ func CreatePendingLogin(ctx context.Context, user User, db *sqlx.DB, expiry time
 	}
 
 	return loginID, verifyToken, nil
+}
+
+func VerifyPendingLogin(ctx context.Context, verifyToken string, db *sqlx.DB) (bool, error) {
+	var pendingLogin PendingLogin
+	err := db.GetContext(ctx, &pendingLogin, "SELECT * FROM pending_logins WHERE verify_token = ?", MustHashToken(verifyToken))
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, PendingLoginNotFoundError
+	}
+	if err != nil {
+		return false, err
+	}
+	if pendingLogin.ExpiresAt.Before(time.Now()) {
+		return false, PendingLoginExpiredError
+	}
+	if pendingLogin.CompletedAt != nil {
+		return false, PendingLoginAlreadyUsedError
+	}
+
+	_, err = db.ExecContext(ctx, "UPDATE pending_logins SET completed_at = ? WHERE id = ?", time.Now(), pendingLogin.ID)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

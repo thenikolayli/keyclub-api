@@ -1,6 +1,8 @@
 package auth
 
-import "time"
+import (
+	"time"
+)
 
 // User represents a user in the database.
 // Role level represents their level: 0 = member, 1 = leader, 2 = officer

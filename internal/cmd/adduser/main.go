@@ -4,11 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
-	"os"
-
 	"keyclub-api/auth"
 	"keyclub-api/internal"
+	"log"
+	"os"
 )
 
 func main() {
@@ -19,7 +18,7 @@ func main() {
 	flag.Parse()
 
 	if *email == "" || *first == "" || *last == "" {
-		fmt.Fprintln(os.Stderr, "usage: go run ./cmd/adduser --email <email> --first <first> --last <last> [--role member]")
+		fmt.Fprintln(os.Stderr, "usage: go run ./internal/cmd/adduser --email <email> --first <first> --last <last> [--role member]")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
