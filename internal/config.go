@@ -15,7 +15,9 @@ type Config struct {
 	DBConfig   DBConfig
 
 	PendingLoginExpiryDuration time.Duration
+	LoginWaitTimeout           time.Duration
 	InviteExpiryDuration       time.Duration
+	SessionDuration            time.Duration
 
 	FrontendURL string
 	APIURL      string
@@ -40,7 +42,9 @@ func LoadConfig() Config {
 		},
 
 		PendingLoginExpiryDuration: 1 * time.Hour,
+		LoginWaitTimeout:           5 * time.Minute,
 		InviteExpiryDuration:       24 * time.Hour,
+		SessionDuration:            14 * 24 * time.Hour,
 
 		FrontendURL: os.Getenv("FRONTEND_URL"),
 		APIURL:      os.Getenv("API_URL"),

@@ -1,0 +1,1 @@
+ALTER TABLE pending_logins RENAME COLUMN verify_token TO verify_token_hash;

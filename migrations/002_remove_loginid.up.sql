@@ -1,0 +1,1 @@
+ALTER TABLE pending_logins DROP COLUMN login_id;
