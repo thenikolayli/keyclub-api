@@ -23,8 +23,8 @@ type PendingLogin struct {
 // Creates a pending login for the given user. Returns the plaintext verify token for the magic link.
 func CreatePendingLogin(ctx context.Context, user User, db *sqlx.DB, expiry time.Duration) (string, string, error) {
 	verifyToken := MustGenerateToken()
-	expiresAt := time.Now().Add(expiry)
 	createdAt := time.Now()
+	expiresAt := createdAt.Add(expiry)
 	id := uuid.New().String()
 
 	pendingLogin := PendingLogin{

@@ -129,7 +129,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 // Confirms that an attempt id cookies exists, awaits the user to verify the login via the magic link email
 // If the cookie doesn't exist, creates a dummy one that will be deleted at the end
 // Deletes cookie at the end
-func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration) http.HandlerFunc {
+func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDuration time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		attemptIDCookie, err := r.Cookie("attempt_id")
 		if err == nil {
@@ -152,18 +152,38 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration) http.HandlerF
 			return
 		}
 
-		// Create session
+		userID, err := auth.GetUserIDByAttemptID(r.Context(), attemptIDCookie.Value, db)
+		if err != nil {
+			web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			slog.Error("auth.login_wait: get user id by attempt id failed", "error", err, "attempt_id", attemptIDCookie.Value)
+			return
+		}
+		sessionToken, err := auth.CreateSession(r.Context(), userID, db, sessionDuration)
+		if err != nil {
+			web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			slog.Error("auth.login_wait: create session failed", "error", err, "user_id", userID)
+			return
+		}
 
 		deleteAttemptIDCookie := http.Cookie{
 			Name:     "attempt_id",
-			Value:    "",
 			Path:     "/",
 			MaxAge:   -1,
 			HttpOnly: true,
 			Secure:   true,
 			SameSite: http.SameSiteLaxMode,
 		}
+		newSessionCookie := http.Cookie{
+			Name:     "session",
+			Value:    sessionToken,
+			Path:     "/",
+			MaxAge:   int(sessionDuration.Seconds()),
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+		}
 		http.SetCookie(w, &deleteAttemptIDCookie)
+		http.SetCookie(w, &newSessionCookie)
 		web.WriteJSON(w, 200, loginWaitResponse{Message: "Login confirmed. You can return to the login page."})
 		slog.Info("auth.login_wait: verified", "attempt_id", attemptIDCookie.Value)
 	}

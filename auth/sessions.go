@@ -1,7 +1,11 @@
 package auth
 
 import (
+	"context"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 type Session struct {
@@ -13,25 +17,25 @@ type Session struct {
 	RevokedAt *time.Time `db:"revoked_at"`
 }
 
-// func CreateSession(ctx context.Context, userID string, db *sqlx.DB) (string, error) {
-// 	token := auth.MustGenerateToken()
-// 	createdAt := time.Now()
-// 	expiresAt := createdAt.Add(24 * time.Hour)
-// 	tokenHash := auth.MustHashToken(token)
-// 	id := uuid.New().String()
+// Creates a session and returns the token
+func CreateSession(ctx context.Context, userID string, db *sqlx.DB, sessionDuration time.Duration) (string, error) {
+	id := uuid.New().String()
+	token := MustGenerateToken()
+	createdAt := time.Now()
+	expiresAt := createdAt.Add(sessionDuration)
 
-// 	session := Session{
-// 		ID:        id,
-// 		UserID:    userID,
-// 		TokenHash: tokenHash,
-// 		CreatedAt: createdAt,
-// 		ExpiresAt: expiresAt,
-// 	}
+	session := Session{
+		ID:        id,
+		UserID:    userID,
+		TokenHash: MustHashToken(token),
+		CreatedAt: createdAt,
+		ExpiresAt: expiresAt,
+	}
 
-// 	_, err := db.NamedExecContext(ctx, "INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at) VALUES (:id, :user_id, :token_hash, :created_at, :expires_at)", session)
-// 	if err != nil {
-// 		return "", err
-// 	}
+	_, err := db.NamedExecContext(ctx, "INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at) VALUES (:id, :user_id, :token_hash, :created_at, :expires_at)", session)
+	if err != nil {
+		return "", err
+	}
 
-// 	return token, nil
-// }
+	return token, nil
+}

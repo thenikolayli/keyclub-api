@@ -39,6 +39,19 @@ func GetUserByEmail(ctx context.Context, email string, db *sqlx.DB) (User, error
 	return user, nil
 }
 
+// Gets a user ID by their pending login attempt ID
+func GetUserIDByAttemptID(ctx context.Context, attemptID string, db *sqlx.DB) (string, error) {
+	var pendingLogin PendingLogin
+	err := db.GetContext(ctx, &pendingLogin, "SELECT * FROM pending_logins WHERE id = ?", attemptID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", PendingLoginNotFoundError
+	}
+	if err != nil {
+		return "", err
+	}
+	return pendingLogin.UserID, nil
+}
+
 // Creates a new user in the database
 func CreateUser(ctx context.Context, db *sqlx.DB, email, firstName, lastName, role string) (User, error) {
 	if role == "" {
