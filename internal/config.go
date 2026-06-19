@@ -5,22 +5,30 @@ import (
 	"log"
 	"net/smtp"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
-type Config struct {
-	SMTPConfig email.SMTPConfig
-	DBConfig   DBConfig
-
+type Durations struct {
 	PendingLoginExpiryDuration time.Duration
 	LoginWaitTimeout           time.Duration
 	InviteExpiryDuration       time.Duration
 	SessionDuration            time.Duration
+	MemberSyncTimeout          time.Duration
+	EventSyncTimeout           time.Duration
+}
+
+type Config struct {
+	SMTPConfig email.SMTPConfig
+	DBConfig   DBConfig
+
+	Durations Durations
 
 	FrontendURL string
 	APIURL      string
+	Officers    []string
 }
 
 func LoadConfig() Config {
@@ -41,12 +49,17 @@ func LoadConfig() Config {
 			MigrationsPath: os.Getenv("DB_MIGRATIONS_PATH"),
 		},
 
-		PendingLoginExpiryDuration: 1 * time.Hour,
-		LoginWaitTimeout:           5 * time.Minute,
-		InviteExpiryDuration:       24 * time.Hour,
-		SessionDuration:            14 * 24 * time.Hour,
+		Durations: Durations{
+			PendingLoginExpiryDuration: 1 * time.Hour,
+			LoginWaitTimeout:           5 * time.Minute,
+			InviteExpiryDuration:       24 * time.Hour,
+			SessionDuration:            14 * 24 * time.Hour,
+			MemberSyncTimeout:          1 * time.Hour,
+			EventSyncTimeout:           1 * time.Hour,
+		},
 
 		FrontendURL: os.Getenv("FRONTEND_URL"),
 		APIURL:      os.Getenv("API_URL"),
+		Officers:    strings.Split(os.Getenv("OFFICERS"), ", "),
 	}
 }

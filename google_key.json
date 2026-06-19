@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "jhs-key-club-hours",
+  "private_key_id": "d0402123a16f7ffbb0935df05f4281d3f4208eff",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDv0skEqT31Wus+\n8Ismfzae9SjTS5Yvk13yq851SyenXiUEz6MNx/EWUrnq/vJHduMBAiNejhEUVi/U\nfDDmzWu8V3KT6hw5YAJ1rClImYdljzzS7/choYRhbBkpipt/Ne0wWWsHq7dkhHOo\noGz2Q+D7TBu+r+Z+EzvGhvWywIOcfpclNkTs3PNl+QKa3VqY74RU50u/1ZpkhAbB\nxOsKkMYjriwsB7MO7w+7kTQ9Go/VCzFBI1uEKayGIAkx3c6j2PcyP9fPShoIesGq\nKis76J/hKTV0X+76CGsSqEjBzmUJOGUK8Ebd9K9+c9DElF8nE9r0syEa56KxiGmK\nYJJ7LYDLAgMBAAECggEAUMfEVCCZsRpl4PZvOJFjGZnknX95YB8YZxQ9375n5fVN\nLNivyIWPjIBjBWfIvg+qmP1aYpAh6qK5S65lXmjVIESoYHBb/2t6iJ5r7XthYvEj\ngL25lYdtKs+ZjieVBv1oHoAQEC5kAKSovKUE7tKgZqUVN17Smabq3I07F3HHIx/N\n3u4p6aBMQdeDUmIR0GXatiYFzZJyNpFGHJ3JjfXqRPj+78z42RY0k8bLWpnNVbQz\nvwkpOrs/OnnLZP7SWVTXl7sPxAY0Rz3Tw3wJZ47LSRR0k4zTvFP4e9MtGbnNLHla\n6wGZmSE6ET5HuCAsvR1fuTBsO2ex7Nox4VSb3ls6qQKBgQD8tJw9bmWoaLvs+z8h\n8GUeVloLCdJwPdnfzHFYI9BMXG2Y4uYF+oX4z8JgOeB2QE3hgKKscs26rkeCtbok\nfNM3ur7W+ocBc/2sHZ5zxvqLA8EHvCg9pJ7pE/roo+kAUHp6Dkro7wghA2RaHEUh\nDSf5kq4d/kKpfDFiud9KHNFHpQKBgQDy8y57axjKriahkEtKRL39zvMqkNR9aoYO\nEqIATwxc2HV4MqV3bp8ieMZQiObbz3ihQHChekIwSJ/sNvkrfXaHKFYcx0l0D++F\niTVMYFfkjc8vhF0K878+ziARp12zOp7GoGwGczAbFjjRd69toh/2sPsOpCGK83ID\n+o+gKyi7rwKBgQDGgLkaKFYCbALyrIlzB3rm0b35XcXIFU3H1rhSHA/La+9LYTB/\nEcObJtfw7oW7XdfPg1RFUgj4012o90c40jS4WiD+jdzu70YcpUeKeorkGBbRFKQn\nh+CsBd3aUKb+cDlFF2UQhHNGO3vgrMRAqiz0hpvvQ4Lpz3ybqJYViX17YQKBgAyf\nX+HfrZkSNUWdppvEOI7QSsgCYFfnyfE/PJWBheXpBSlqkDhFUhVLaxpSEpSHEgBm\nxbNOE9RIYa63KHj++sKI8PhrzkAud8ZbW56NPuPMDmCsotznzx7nPLlOFcszF37A\nZPxszaoKnIcdjcrHapu5lEGte2Spw1m7kezDcUlXAoGBAMjOWBQPZBvdqTjfmLLa\n69JsNKnVct76uqP9e8cjUgIHIOgucHat6mdXh/9P1HFHdnO3QaGFJbDPHsCelim1\nGtjxcAmqWcLHuElXlH8Yo3Vax/5lr5cxAJn23mI+RKLaqr/pXX5Zcen9In6r/jRJ\nGmQ2+/rQYFCbI4FURg/CnOYI\n-----END PRIVATE KEY-----\n",
+  "client_email": "jhs-key-club-hours@jhs-key-club-hours.iam.gserviceaccount.com",
+  "client_id": "110161842586242793455",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/jhs-key-club-hours%40jhs-key-club-hours.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
