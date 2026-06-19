@@ -2,6 +2,12 @@ package auth
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"keyclub-api/web"
+	"log/slog"
+	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,6 +21,14 @@ type Session struct {
 	CreatedAt time.Time  `db:"created_at"`
 	ExpiresAt time.Time  `db:"expires_at"`
 	RevokedAt *time.Time `db:"revoked_at"`
+}
+
+var SessionNotFoundError = errors.New("Session not found")
+var SessionRevokedError = errors.New("Session revoked")
+var SessionExpiredError = errors.New("Session expired")
+
+type errorResponse struct {
+	Error string `json:"error"`
 }
 
 // Creates a session and returns the token
@@ -38,4 +52,86 @@ func CreateSession(ctx context.Context, userID string, db *sqlx.DB, sessionDurat
 	}
 
 	return token, nil
+}
+
+// Gets a session by its token
+func GetSessionByToken(ctx context.Context, token string, db *sqlx.DB) (Session, error) {
+	var session Session
+	err := db.GetContext(ctx, &session, "SELECT * FROM sessions WHERE token_hash = ?", MustHashToken(token))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Session{}, SessionNotFoundError
+	}
+	if err != nil {
+		return Session{}, err
+	}
+	return session, nil
+}
+
+// Checks if a session is valid
+func IsValidSession(ctx context.Context, session Session, db *sqlx.DB) (bool, error) {
+	if session.RevokedAt != nil {
+		return false, SessionRevokedError
+	}
+	if session.ExpiresAt.Before(time.Now()) {
+		return false, SessionExpiredError
+	}
+	return true, nil
+}
+
+// Revokes a session
+func RevokeSessionBySessionToken(ctx context.Context, sessionToken string, db *sqlx.DB) error {
+	_, err := db.ExecContext(ctx, "UPDATE sessions SET revoked_at = ? WHERE token_hash = ?", time.Now(), MustHashToken(sessionToken))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Requires the user to have one of the specified roles
+func RequireRoles(db *sqlx.DB, next http.HandlerFunc, roles ...string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessionCookie, err := r.Cookie("session")
+		if err == nil {
+			session, err := GetSessionByToken(r.Context(), sessionCookie.Value, db)
+			if err != nil {
+				web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				slog.Error("auth.require_roles: get session by token failed", "error", err)
+				return
+			}
+
+			valid, err := IsValidSession(r.Context(), session, db)
+			if err != nil {
+				web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				slog.Error("auth.require_roles: is valid session failed", "error", err)
+				return
+			}
+			if !valid {
+				web.WriteJSON(w, 401, errorResponse{Error: "Unauthorized."})
+				slog.Info("auth.require_roles: session is not valid")
+				return
+			}
+
+			user, err := GetUserByID(r.Context(), session.UserID, db)
+			if err != nil {
+				web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				slog.Error("auth.require_roles: get user by id failed", "error", err)
+				return
+			}
+
+			if !slices.Contains(roles, user.Role) {
+				web.WriteJSON(w, 401, errorResponse{Error: "Unauthorized."})
+				slog.Info("auth.require_roles: user does not have the required roles")
+				return
+			}
+			next(w, r)
+		} else if errors.Is(err, http.ErrNoCookie) {
+			web.WriteJSON(w, 401, errorResponse{Error: "Unauthorized."})
+			slog.Info("auth.require_roles: session cookie missing")
+			return
+		} else {
+			web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			slog.Error("auth.require_roles: read session cookie failed", "error", err)
+			return
+		}
+	}
 }

@@ -52,6 +52,19 @@ func GetUserIDByAttemptID(ctx context.Context, attemptID string, db *sqlx.DB) (s
 	return pendingLogin.UserID, nil
 }
 
+// Gets a user by their ID
+func GetUserByID(ctx context.Context, id string, db *sqlx.DB) (User, error) {
+	var user User
+	err := db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = ?", id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, UserNotFoundError
+	}
+	if err != nil {
+		return User{}, err
+	}
+	return user, nil
+}
+
 // Creates a new user in the database
 func CreateUser(ctx context.Context, db *sqlx.DB, email, firstName, lastName, role string) (User, error) {
 	if role == "" {

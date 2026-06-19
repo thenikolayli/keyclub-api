@@ -165,14 +165,7 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 			return
 		}
 
-		deleteAttemptIDCookie := http.Cookie{
-			Name:     "attempt_id",
-			Path:     "/",
-			MaxAge:   -1,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-		}
+		attemptIDCookie.MaxAge = 0
 		newSessionCookie := http.Cookie{
 			Name:     "session",
 			Value:    sessionToken,
@@ -182,7 +175,7 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 			Secure:   true,
 			SameSite: http.SameSiteLaxMode,
 		}
-		http.SetCookie(w, &deleteAttemptIDCookie)
+		http.SetCookie(w, attemptIDCookie)
 		http.SetCookie(w, &newSessionCookie)
 		web.WriteJSON(w, 200, loginWaitResponse{Message: "Login confirmed. You can return to the login page."})
 		slog.Info("auth.login_wait: verified", "attempt_id", attemptIDCookie.Value)
