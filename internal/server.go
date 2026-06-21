@@ -2,14 +2,24 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"keyclub-api/auth/handlers"
 	"keyclub-api/sync"
 	"log"
+	"log/slog"
 	"net/http"
 )
 
 func (a *App) Start(addr string) error {
-	go sync.SyncMembersFromSheet(context.Background(), a.GoogleConfig, &a.MemberSync, a.DB)
+	if err := sync.SyncMembers(context.Background(), a.GoogleConfig, &a.MemberSync, a.DB); err != nil {
+		slog.Error("server: failed to sync members", "error", err)
+		return fmt.Errorf("failed to sync members: %v", err)
+	}
+
+	if err := sync.SyncEvents(context.Background(), a.GoogleConfig, &a.EventSync, a.DB); err != nil {
+		slog.Error("server: failed to sync events", "error", err)
+		return fmt.Errorf("failed to sync events: %v", err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/login/start", handlers.LoginStartHandler(a.DB, a.Config.Durations.PendingLoginExpiryDuration, a.Config.SMTPConfig, a.Config.FrontendURL))

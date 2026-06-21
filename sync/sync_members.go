@@ -2,10 +2,10 @@ package sync
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"keyclub-api/google"
 	"keyclub-api/members"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,7 +17,9 @@ import (
 // fetches values via an api call to the hours spreadsheet
 // formats the response to member structs
 // updates the database based on structs
-func SyncMembersFromSheet(ctx context.Context, googleConfig google.GoogleConfig, memberSync *SyncState, db *sqlx.DB) error {
+func SyncMembers(ctx context.Context, googleConfig google.GoogleConfig, memberSync *SyncState, db *sqlx.DB) error {
+	slog.Info("sync.members: starting")
+
 	memberSync.Mutex.Lock()
 	defer memberSync.Mutex.Unlock()
 
@@ -30,64 +32,31 @@ func SyncMembersFromSheet(ctx context.Context, googleConfig google.GoogleConfig,
 
 	transaction, err := db.BeginTxx(ctx, nil)
 	if err != nil {
+		slog.Error("sync.members: begin transaction failed", "error", err)
 		return fmt.Errorf("Failed to create a transaction: %v", err)
 	}
+	defer transaction.Rollback()
+
 	for _, each := range formattedMemberStructs {
-		err := upsertMember(ctx, each, transaction)
-		if err != nil {
+		if err := members.UpsertMember(ctx, each, transaction); err != nil {
 			return err
 		}
 	}
-	transaction.Commit()
+	if err := transaction.Commit(); err != nil {
+		slog.Error("sync.members: commit transaction failed", "error", err)
+		return fmt.Errorf("Failed to commit transaction: %v", err)
+	}
 
 	memberSync.LastUpdated = time.Now()
-	return nil
-}
-
-// takes in a formatted member struct and a transaction and upserts their row
-// checks if a member with the same name exists
-// if they don't, insert them
-// otherwise, update
-func upsertMember(ctx context.Context, member members.Member, transaction *sqlx.Tx) error {
-	result := members.Member{}
-	err := transaction.GetContext(
-		ctx, &result,
-		"SELECT * from members WHERE first_name = ? AND last_name = ? LIMIT 1",
-		member.Firstname, member.Lastname,
-	)
-	if err == sql.ErrNoRows {
-		_, insertErr := transaction.NamedExecContext(
-			ctx,
-			`INSERT INTO members
-			(first_name, nickname, middle_name, last_name, all_hours, term_hours, grad_year, class, strikes, personal_email, school_email, phone_number, shirt_size, paid_dues)
-			VALUES
-			(:first_name, :nickname, :middle_name, :last_name, :all_hours, :term_hours, :grad_year, :class, :strikes, :personal_email, :school_email, :phone_number, :shirt_size, :paid_dues)`,
-			member,
-		)
-		if insertErr != nil {
-			return fmt.Errorf("Issue inserting member during upsert: %v", insertErr)
-		}
-	} else if err != nil {
-		return fmt.Errorf("Issue upserting member: %v", err)
-	} else {
-		member.ID = result.ID // to update the correct row based on primary key (id)
-		_, updateErr := transaction.NamedExecContext(
-			ctx,
-			`UPDATE members SET 
-			first_name=:first_name, nickname=:nickname, middle_name=:middle_name, last_name=:last_name, all_hours=:all_hours, term_hours=:term_hours, grad_year=:grad_year, class=:class, strikes=:strikes, personal_email=:personal_email, school_email=:school_email, phone_number=:phone_number, shirt_size=:shirt_size, paid_dues=:paid_dues
-			WHERE id=:id`,
-			member,
-		)
-		if updateErr != nil {
-			return fmt.Errorf("Issue updating member during upsert: %v", updateErr)
-		}
-	}
+	slog.Info("sync.members: completed", "count", len(formattedMemberStructs))
 	return nil
 }
 
 // fetches and returns google sheets api value ranges (unformatted)
 func getMemberValueRanges(ctx context.Context, googleConfig google.GoogleConfig) ([]*sheets.ValueRange, error) {
 	r := googleConfig.MembersSheetRanges
+	slog.Info("sync.members: fetching sheet ranges", "spreadsheet_id", googleConfig.SpreadsheetID, "sheet", r.SheetName)
+
 	data, err := googleConfig.SheetsService.Spreadsheets.Values.BatchGet(googleConfig.SpreadsheetID).Ranges(
 		r.Names,
 		r.AllHours,
@@ -102,33 +71,41 @@ func getMemberValueRanges(ctx context.Context, googleConfig google.GoogleConfig)
 		r.PaidDues,
 	).Context(ctx).Do()
 	if err != nil {
+		slog.Error("sync.members: batch get sheet ranges failed", "error", err, "spreadsheet_id", googleConfig.SpreadsheetID)
 		return nil, fmt.Errorf("Failed to batch get spreadsheet ranges: %v", err)
 	}
+
+	slog.Info("sync.members: fetched sheet ranges", "columns", len(data.ValueRanges))
 	return data.ValueRanges, nil
 }
 
 // takes the api call value ranges and turns them into an array of member structs
 func getMemberStructs(memberValueRanges []*sheets.ValueRange) []members.Member {
-	// gets length based on the length of the names column
+	if len(memberValueRanges) == 0 {
+		slog.Warn("sync.members: no value ranges returned from sheet")
+		return nil
+	}
+
 	memberValueRangesLength := len(memberValueRanges[0].Values)
 	formattedMemberArray := make([]members.Member, memberValueRangesLength)
 
-	normalizedNames := NormalizeStringValues(memberValueRanges[0].Values, memberValueRangesLength)
-	normalizedAllHours := NormalizeFloatValues(memberValueRanges[1].Values, memberValueRangesLength)
-	normalizedTermHours := NormalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
-	normalizedGradYears := NormalizeIntValues(memberValueRanges[3].Values, memberValueRangesLength)
-	normalizedClasses := NormalizeStringValues(memberValueRanges[4].Values, memberValueRangesLength)
-	normalizedStrikes := NormalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
-	normalizedPersonalEmails := NormalizeStringValues(memberValueRanges[6].Values, memberValueRangesLength)
-	normalizedSchoolEmails := NormalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
-	normalizedPhoneNumbers := NormalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
-	normalizedShirtSizes := NormalizeStringValues(memberValueRanges[9].Values, memberValueRangesLength)
-	normalizedPaidDues := NormalizeBoolValues(memberValueRanges[10].Values, memberValueRangesLength)
+	normalizedNames := Normalize(memberValueRanges[0].Values, memberValueRangesLength, Parsers.String)
+	normalizedAllHours := Normalize(memberValueRanges[1].Values, memberValueRangesLength, Parsers.Float)
+	normalizedTermHours := Normalize(memberValueRanges[2].Values, memberValueRangesLength, Parsers.Float)
+	normalizedGradYears := Normalize(memberValueRanges[3].Values, memberValueRangesLength, Parsers.Int)
+	normalizedClasses := Normalize(memberValueRanges[4].Values, memberValueRangesLength, Parsers.String)
+	normalizedStrikes := Normalize(memberValueRanges[5].Values, memberValueRangesLength, Parsers.Int)
+	normalizedPersonalEmails := Normalize(memberValueRanges[6].Values, memberValueRangesLength, Parsers.String)
+	normalizedSchoolEmails := Normalize(memberValueRanges[7].Values, memberValueRangesLength, Parsers.String)
+	normalizedPhoneNumbers := Normalize(memberValueRanges[8].Values, memberValueRangesLength, Parsers.String)
+	normalizedShirtSizes := Normalize(memberValueRanges[9].Values, memberValueRangesLength, Parsers.String)
+	normalizedPaidDues := Normalize(memberValueRanges[10].Values, memberValueRangesLength, Parsers.Bool)
 
-	for i := range memberValueRangesLength - 1 {
+	for i := range memberValueRangesLength {
 		name := members.NewName(normalizedNames[i])
 
 		formattedMemberArray[i] = members.Member{
+			ID:            uuid.New().String(),
 			Firstname:     name.First,
 			Nickname:      name.Nick,
 			Middlename:    name.Middle,
@@ -143,9 +120,11 @@ func getMemberStructs(memberValueRanges []*sheets.ValueRange) []members.Member {
 			Strikes:       normalizedStrikes[i],
 			ShirtSize:     normalizedShirtSizes[i],
 			PaidDues:      normalizedPaidDues[i],
-			ID:            uuid.New().String(),
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
 		}
 	}
 
+	slog.Info("sync.members: built member structs from sheet", "count", len(formattedMemberArray))
 	return formattedMemberArray
 }

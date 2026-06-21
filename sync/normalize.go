@@ -5,61 +5,33 @@ import (
 	"strconv"
 )
 
-// the following functions create normalized lists with blanks from the originals
-
-func NormalizeBoolValues(values [][]any, length int) []bool {
-	normalizedStringValues := make([]bool, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			value, err := strconv.ParseBool(values[i][0].(string))
-			if err == nil {
-				normalizedStringValues[i] = bool(value)
-			}
-		}
-	}
-
-	return normalizedStringValues
+// Parsers are the parse functions passed to Normalize for each column type.
+var Parsers = struct {
+	String func(string) (string, error)
+	Float  func(string) (float64, error)
+	Int    func(string) (int, error)
+	Bool   func(string) (bool, error)
+}{
+	String: func(s string) (string, error) { return s, nil },
+	Float:  func(s string) (float64, error) { return strconv.ParseFloat(s, 64) },
+	Int: func(s string) (int, error) {
+		v, err := strconv.ParseInt(s, 0, 64)
+		return int(v), err
+	},
+	Bool: strconv.ParseBool,
 }
 
-func NormalizeFloatValues(values [][]any, length int) []float64 {
-	normalizedFloatValues := make([]float64, length)
-
+// Normalize turns a ragged sheet column into a fixed-length slice, using zero values for blanks and unparseable cells.
+func Normalize[T any](values [][]any, length int, parse func(string) (T, error)) []T {
+	out := make([]T, length)
 	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			value, err := strconv.ParseFloat(fmt.Sprintf("%v", values[i][0]), 64)
-			if err == nil {
-				normalizedFloatValues[i] = value
-			}
+		if len(values[i]) == 0 {
+			continue
+		}
+		v, err := parse(fmt.Sprintf("%v", values[i][0]))
+		if err == nil {
+			out[i] = v
 		}
 	}
-
-	return normalizedFloatValues
-}
-
-func NormalizeIntValues(values [][]any, length int) []int {
-	normalizedIntValues := make([]int, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			value, err := strconv.ParseInt(fmt.Sprintf("%v", values[i][0]), 0, 64)
-			if err == nil {
-				normalizedIntValues[i] = int(value)
-			}
-		}
-	}
-
-	return normalizedIntValues
-}
-
-func NormalizeStringValues(values [][]any, length int) []string {
-	normalizedStringValues := make([]string, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			normalizedStringValues[i] = fmt.Sprintf("%v", values[i][0])
-		}
-	}
-
-	return normalizedStringValues
+	return out
 }

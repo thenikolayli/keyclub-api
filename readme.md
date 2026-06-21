@@ -24,13 +24,13 @@ HTML email templates built with [Maizzle](https://maizzle.com) and Tailwind CSS.
 
 The app loads a `.env` file at startup (via `godotenv`). All variables below are required unless noted otherwise.
 
-| Variable | Description |
-| --- | --- |
-| `SMTP_PASSWORD` | App password for the Gmail account used to send transactional email. |
-| `DB_SQLITE_PATH` | Filesystem path to the SQLite database file (for example, `data/keyclub.db`). |
-| `DB_MIGRATIONS_PATH` | Path to the SQL migration files directory (for example, `migrations`). |
-| `FRONTEND_URL` | Base URL of the frontend app. Used to build magic-login links in email (for example, `https://jhskeyclub.com`). |
-| `API_URL` | Base URL of this API. Loaded into config; not used by handlers yet. |
+| Variable             | Description                                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `SMTP_PASSWORD`      | App password for the Gmail account used to send transactional email.                                            |
+| `DB_SQLITE_PATH`     | Filesystem path to the SQLite database file (for example, `data/keyclub.db`).                                   |
+| `DB_MIGRATIONS_PATH` | Path to the SQL migration files directory (for example, `migrations`).                                          |
+| `FRONTEND_URL`       | Base URL of the frontend app. Used to build magic-login links in email (for example, `https://jhskeyclub.com`). |
+| `API_URL`            | Base URL of this API. Loaded into config; not used by handlers yet.                                             |
 
 ## Running
 
@@ -49,3 +49,11 @@ Build email templates:
 ```bash
 cd maizzle && npm install && npm run build
 ```
+
+## Todo
+
+List of things to add, prioritized.
+
+- [ ] Member Hour lookup function
+- [ ] Event lookup function
+- [ ] Event log function
