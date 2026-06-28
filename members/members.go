@@ -98,6 +98,44 @@ func (member Member) Format() FormattedMember {
 	}
 }
 
+// gets a member via name
+func GetMember(ctx context.Context, db *sqlx.DB, name string) (Member, error) {
+	formattedName := NewName(name)
+	result := Member{}
+	var err error
+
+	// if first and last was given, try both, then reverse (if they put in last first)
+	// then try by nickname if given, then by first
+	if formattedName.First != "" && formattedName.Last != "" {
+		err = db.GetContext(
+			ctx, &result,
+			`SELECT * FROM members WHERE first_name = ? AND last_name = ? LIMIT 1`,
+			formattedName.First, formattedName.Last,
+		)
+		if err == sql.ErrNoRows {
+			err = db.GetContext(
+				ctx, &result,
+				`SELECT * FROM members WHERE first_name = ? AND last_name = ? LIMIT 1`,
+				formattedName.Last, formattedName.First,
+			)
+		}
+	} else if formattedName.Nick != "" {
+		err = db.GetContext(
+			ctx, &result,
+			`SELECT * FROM members WHERE nickname = ? OR first_name = ? LIMIT 1`,
+			formattedName.Nick, formattedName.First,
+		)
+	}
+	if err == sql.ErrNoRows {
+		return Member{}, fmt.Errorf("No member found with the name %v", name)
+	}
+	if err != nil {
+		return Member{}, fmt.Errorf("Error getting member hours: %v", err)
+	}
+
+	return result, nil
+}
+
 // upserts member into the database
 func UpsertMember(ctx context.Context, member Member, queryer sqlx.ExtContext) error {
 	var result Member

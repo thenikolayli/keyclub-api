@@ -54,6 +54,8 @@ cd maizzle && npm install && npm run build
 
 List of things to add, prioritized.
 
-- [ ] Member Hour lookup function
+- [x] Member Hour lookup function
 - [ ] Event lookup function
 - [ ] Event log function
+- [ ] Member class ranks function
+- [ ] Add endpoints for those functions
