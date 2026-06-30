@@ -35,20 +35,41 @@ The app loads a `.env` file at startup (via `godotenv`). All variables below are
 ## Running
 
 ```bash
+# Build email templates
+cd maizzle && npm install && npm run build
+
+# Create a user from the command line
+go run ./internal/cmd/adduser --email <email> --first <first> --last <last> [--role member]
+
+# Run the server
 go run .
 ```
 
-Create a user from the command line:
+## Running in Prod:
 
 ```bash
-go run ./internal/cmd/adduser --email <email> --first <first> --last <last> [--role member]
+# Clone the repository
+git clone https://github.com/thenikolayli/keyclub-api
+cd keyclub-api
+
+# Create and write necessary files
+touch .env
+touch db.sqlite3
+touch google_key.json
+
+# Build email templates
+cd maizzle
+npm i
+npm run build
+cd ..
+
+# Build the binary and run it
+go build -o ./api
+./api
 ```
 
-Build email templates:
-
-```bash
-cd maizzle && npm install && npm run build
-```
+Keep in mind that you need to update the `FRONTENT_URL` variable to whatever the frontend is, for CORS.
+The production frontend should be `www.jhskeyclub.org`.
 
 ## Todo
 
@@ -59,3 +80,20 @@ List of things to add, prioritized.
 - [ ] Event log function
 - [ ] Member class ranks function
 - [ ] Add endpoints for those functions
+
+## Example .env
+
+```
+SMTP_PASSWORD=pass word pass word
+
+DB_SQLITE_PATH=db.sqlite3
+DB_MIGRATIONS_PATH=migrations
+
+FRONTEND_URL=https://www.jhskeyclub.org
+API_URL=http://localhost:8000
+
+OFFICERS="Annabelle Ho, Eldana Woldegiorgis, Kaitlyn Luu, Nadia Villareal-Carriedo, Nana Endo, Ellie Nguyen, Nikolay Li, Daya Putheth"
+GOOGLE_KEY_FILE_PATH=google_key.json
+SPREADSHEET_ID=supersecretid
+CALENDAR_ID=supersecretid@group.calendar.google.com
+```
