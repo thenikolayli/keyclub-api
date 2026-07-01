@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	authHandlers "keyclub-api/auth/handlers"
+	eventsHandlers "keyclub-api/events/handlers"
 	membersHandlers "keyclub-api/members/handlers"
 )
 
@@ -65,6 +66,7 @@ func (a *App) Start(addr string) error {
 	mux.HandleFunc("POST /auth/login/verify", authHandlers.LoginVerifyHandler(a.DB))
 	mux.HandleFunc("GET /auth/logout", authHandlers.LogoutHandler(a.DB))
 	mux.HandleFunc("POST /members/hours", membersHandlers.HoursHandler(a.DB))
+	mux.HandleFunc("POST /events/search", eventsHandlers.SearchHandler(a.DB))
 
 	server := &http.Server{Addr: addr, Handler: cors(a.Config.FrontendURL, mux)}
 
