@@ -118,6 +118,8 @@ func parseInfoTable(table docs.Table) (Event, error) {
 			name = value
 		case "address:":
 			address = value
+		case "location:":
+			address = value
 		case "leaders:":
 			leaders = value
 		case "made by:":
@@ -293,20 +295,34 @@ func getCellText(tableCell *docs.TableCell) string {
 			continue
 		}
 		for _, elem := range content.Paragraph.Elements {
-			if elem.TextRun != nil {
-				stringBuilder.WriteString(elem.TextRun.Content)
-			}
+			stringBuilder.WriteString(elementText(elem))
 		}
 	}
 	return strings.TrimSpace(stringBuilder.String())
 }
 
+// extracts plain text from a paragraph element, including smart chips
+// (RichLink/Person), which don't carry a TextRun but still display text
+func elementText(elem *docs.ParagraphElement) string {
+	switch {
+	case elem.TextRun != nil:
+		return elem.TextRun.Content
+	case elem.RichLink != nil && elem.RichLink.RichLinkProperties != nil:
+		return elem.RichLink.RichLinkProperties.Title
+	case elem.Person != nil && elem.Person.PersonProperties != nil:
+		if elem.Person.PersonProperties.Name != "" {
+			return elem.Person.PersonProperties.Name
+		}
+		return elem.Person.PersonProperties.Email
+	default:
+		return ""
+	}
+}
+
 func getParagraphText(paragraph *docs.Paragraph) string {
 	var stringBuilder strings.Builder
 	for _, elem := range paragraph.Elements {
-		if elem.TextRun != nil {
-			stringBuilder.WriteString(elem.TextRun.Content)
-		}
+		stringBuilder.WriteString(elementText(elem))
 	}
 	return stringBuilder.String()
 }

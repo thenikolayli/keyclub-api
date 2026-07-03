@@ -67,7 +67,7 @@ func syncEventsFromCalendar(ctx context.Context, googleConfig google.GoogleConfi
 	slog.Info("sync.events: fetching calendar events", "calendar_id", googleConfig.CalendarID)
 
 	timeMin := time.Now().Format(time.RFC3339)
-	timeMax := time.Now().AddDate(0, 1, 0).Format(time.RFC3339)
+	timeMax := time.Now().AddDate(1, 0, 0).Format(time.RFC3339)
 	calendarEvents, err := googleConfig.CalendarService.Events.List(googleConfig.CalendarID).TimeMin(timeMin).TimeMax(timeMax).Context(ctx).Do()
 	if err != nil {
 		slog.Error("sync.events: list calendar events failed", "error", err, "calendar_id", googleConfig.CalendarID)

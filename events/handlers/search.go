@@ -24,12 +24,12 @@ type searchRequest struct {
 type formattedEvent struct {
 	Name         string  `json:"name"`
 	Date         string  `json:"date"`
-	StartTime    string  `json:"start_time"`
-	EndTime      string  `json:"end_time"`
+	StartTime    string  `json:"startTime"`
+	EndTime      string  `json:"endTime"`
 	Length       float64 `json:"length"`
 	Address      string  `json:"address"`
-	NofOpenSlots int     `json:"n_of_open_slots"`
-	SignUpUrl    string  `json:"sign_up_url"`
+	NofOpenSlots int     `json:"nofOpenSlots"`
+	SignUpUrl    string  `json:"signUpUrl"`
 	Description  string  `json:"description"`
 }
 
