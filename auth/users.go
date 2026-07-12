@@ -11,7 +11,8 @@ import (
 )
 
 // User represents a user in the database.
-// Role level represents their level: 0 = member, 1 = leader, 2 = officer
+// Role level represents their level: member, leader, officer
+// Though, members shouldn't have roles, technically...
 type User struct {
 	ID        string    `db:"id"`
 	Email     string    `db:"email"`

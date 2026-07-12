@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"keyclub-api/auth"
 	"keyclub-api/google"
 	"keyclub-api/sync"
 	"log"
@@ -65,10 +66,16 @@ func (a *App) Start(addr string) error {
 	mux.HandleFunc("GET /auth/login/wait", authHandlers.LoginWaitHandler(a.DB, a.Config.Durations.LoginWaitTimeout, a.Config.Durations.SessionDuration))
 	mux.HandleFunc("POST /auth/login/verify", authHandlers.LoginVerifyHandler(a.DB))
 	mux.HandleFunc("GET /auth/logout", authHandlers.LogoutHandler(a.DB))
+	mux.HandleFunc("GET /auth/me", authHandlers.MeHandler(a.DB))
+
 	mux.HandleFunc("POST /members/hours", membersHandlers.HoursHandler(a.DB))
+
 	mux.HandleFunc("POST /events/search", eventsHandlers.SearchHandler(a.DB))
 
-	server := &http.Server{Addr: addr, Handler: cors(a.Config.FrontendURL, mux)}
+	server := &http.Server{
+		Addr:    addr,
+		Handler: auth.CORSMiddleware(a.Config.FrontendURL, auth.SessionMiddleware(a.DB, mux, a.Config.Durations.SessionDuration)),
+	}
 
 	// Create a channel to receive server errors
 	serverErr := make(chan error, 1)
@@ -101,20 +108,4 @@ func (a *App) Start(addr string) error {
 		slog.Error("app: scheduler shutdown error", "error", err)
 	}
 	return nil
-}
-
-// CORS config, so the browser can accept responses from the server
-func cors(allowedOrigin string, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

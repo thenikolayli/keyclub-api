@@ -4,10 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"keyclub-api/web"
-	"log/slog"
-	"net/http"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -85,53 +81,4 @@ func RevokeSessionBySessionToken(ctx context.Context, sessionToken string, db *s
 		return err
 	}
 	return nil
-}
-
-// Requires the user to have one of the specified roles
-func RequireRoles(db *sqlx.DB, next http.HandlerFunc, roles ...string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sessionCookie, err := r.Cookie("session")
-		if err == nil {
-			session, err := GetSessionByToken(r.Context(), sessionCookie.Value, db)
-			if err != nil {
-				web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
-				slog.Error("auth.require_roles: get session by token failed", "error", err)
-				return
-			}
-
-			valid, err := IsValidSession(r.Context(), session, db)
-			if err != nil {
-				web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
-				slog.Error("auth.require_roles: is valid session failed", "error", err)
-				return
-			}
-			if !valid {
-				web.WriteJSON(w, 401, errorResponse{Error: "Unauthorized."})
-				slog.Info("auth.require_roles: session is not valid")
-				return
-			}
-
-			user, err := GetUserByID(r.Context(), session.UserID, db)
-			if err != nil {
-				web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
-				slog.Error("auth.require_roles: get user by id failed", "error", err)
-				return
-			}
-
-			if !slices.Contains(roles, user.Role) {
-				web.WriteJSON(w, 401, errorResponse{Error: "Unauthorized."})
-				slog.Info("auth.require_roles: user does not have the required roles")
-				return
-			}
-			next(w, r)
-		} else if errors.Is(err, http.ErrNoCookie) {
-			web.WriteJSON(w, 401, errorResponse{Error: "Unauthorized."})
-			slog.Info("auth.require_roles: session cookie missing")
-			return
-		} else {
-			web.WriteJSON(w, 500, errorResponse{Error: "Internal server error, contact the Webmaster."})
-			slog.Error("auth.require_roles: read session cookie failed", "error", err)
-			return
-		}
-	}
 }

@@ -17,7 +17,7 @@ import (
 )
 
 type verifyLoginRequest struct {
-	VerifyToken string `json:"verify_token"`
+	VerifyToken string `json:"token"`
 }
 
 type verifyLoginResponse struct {
@@ -44,6 +44,13 @@ type loginWaitResponse struct {
 // Existing login attempt: verifies the attempt ID and email correspond to an existing unexpired uncompleted pending login, if yes: does literally nothing, otherwise: does New Login Attempt
 func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig email.SMTPConfig, frontendURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth.UserFromContext(r.Context())
+		if ok {
+			web.WriteJSON(w, http.StatusOK, loginStartResponse{Message: "You are already logged in."})
+			slog.Info("auth.login_start: user already logged in", "user_id", user.ID)
+			return
+		}
+
 		var req loginStartRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Error: "Invalid json."})
@@ -71,7 +78,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 			return
 		}
 
-		user, err := auth.GetUserByEmail(r.Context(), req.Email, db)
+		user, err = auth.GetUserByEmail(r.Context(), req.Email, db)
 		if errors.Is(err, auth.UserNotFoundError) {
 			newAttemptIDCookie := http.Cookie{
 				Name:     "attempt_id",
@@ -103,7 +110,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 		emailTemplate := email.PendingLoginEmailTemplate{
 			Subject:   "Attempted Login",
 			FirstName: user.FirstName,
-			MagicLink: fmt.Sprintf("%s/admin/verifylogin?verify_token=%s", frontendURL, verifyToken),
+			MagicLink: fmt.Sprintf("%s/admin/verifylogin?token=%s", frontendURL, verifyToken),
 		}
 		if err := email.SendPendingLoginEmail(emailTemplate, req.Email, smtpConfig); err != nil {
 			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
@@ -131,6 +138,13 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 // Deletes cookie at the end
 func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDuration time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth.UserFromContext(r.Context())
+		if ok {
+			web.WriteJSON(w, http.StatusOK, loginWaitResponse{Message: "You are already logged in."})
+			slog.Info("auth.login_wait: user already logged in", "user_id", user.ID)
+			return
+		}
+
 		attemptIDCookie, err := r.Cookie("attempt_id")
 		if err == nil {
 		} else if errors.Is(err, http.ErrNoCookie) {
@@ -185,6 +199,13 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 // Verifies a pending login once a user clicks the magic link in the email
 func LoginVerifyHandler(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth.UserFromContext(r.Context())
+		if ok {
+			web.WriteJSON(w, http.StatusOK, verifyLoginResponse{Message: "You are already logged in."})
+			slog.Info("auth.login_verify: user already logged in", "user_id", user.ID)
+			return
+		}
+
 		var req verifyLoginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Error: "Invalid json."})
