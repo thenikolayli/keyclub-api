@@ -6,6 +6,7 @@ import (
 	"keyclub-api/events"
 	"keyclub-api/google"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -75,19 +76,31 @@ func syncEventsFromCalendar(ctx context.Context, googleConfig google.GoogleConfi
 	}
 	slog.Info("sync.events: fetched calendar events", "count", len(calendarEvents.Items))
 
-	formattedEvents := make([]events.Event, 0, len(calendarEvents.Items))
+	initial := time.Now()
+	formattedEvents := make(chan events.Event, len(calendarEvents.Items))
+	var wg sync.WaitGroup
+
 	for _, calEvent := range calendarEvents.Items {
-		if len(calEvent.Attachments) == 0 {
-			continue
-		}
-		attendanceDoc, err := events.ParseAttendanceDoc(ctx, events.DocsUrlToID(calEvent.Attachments[0].FileUrl), googleConfig.DocsService)
-		if err != nil {
-			slog.Warn("sync.events: get event info failed", "event", calEvent.Summary, "error", err)
-			continue
-		}
-		formattedEvents = append(formattedEvents, attendanceDoc.Event)
+		wg.Go(func() {
+			if len(calEvent.Attachments) == 0 {
+				return
+			}
+			attendanceDoc, err := events.ParseAttendanceDoc(ctx, events.DocsUrlToID(calEvent.Attachments[0].FileUrl), googleConfig.DocsService)
+			if err != nil {
+				slog.Warn("sync.events: get event info failed", "event", calEvent.Summary, "error", err)
+				return
+			}
+			formattedEvents <- attendanceDoc.Event
+		})
 	}
-	slog.Info("sync.events: parsed calendar events", "count", len(formattedEvents))
+
+	// waits for the final goroutine to finish before closing the channel
+	go func() {
+		wg.Wait()
+		close(formattedEvents)
+		slog.Info("sync.events: parsed calendar events", "count", len(formattedEvents))
+		slog.Info("sync.events: time passed", "duration", time.Since(initial)) // duration=3.792399116s // duration=484.459306ms
+	}()
 
 	transaction, err := db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -96,7 +109,7 @@ func syncEventsFromCalendar(ctx context.Context, googleConfig google.GoogleConfi
 	}
 	defer transaction.Rollback()
 
-	for _, event := range formattedEvents {
+	for event := range formattedEvents {
 		if err := events.UpsertEvent(ctx, event, transaction); err != nil {
 			return err
 		}
