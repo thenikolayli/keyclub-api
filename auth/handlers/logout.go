@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"keyclub-api/auth"
+	"keyclub-api/config"
 	"keyclub-api/web"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -14,7 +16,7 @@ type logoutResponse struct {
 }
 
 // Logs the user out by revoking their session and deleting the session cookie
-func LogoutHandler(db *sqlx.DB) http.HandlerFunc {
+func LogoutHandler(db *sqlx.DB, cookieCfg config.CookieConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionCookie, err := r.Cookie("session")
 		if err == nil {
@@ -25,8 +27,17 @@ func LogoutHandler(db *sqlx.DB) http.HandlerFunc {
 				return
 			}
 		}
-		sessionCookie.MaxAge = 0
-		http.SetCookie(w, sessionCookie)
+		http.SetCookie(w, &http.Cookie{
+			Name:     "session",
+			Value:    "",
+			Path:     cookieCfg.Path,
+			Domain:   cookieCfg.Domain,
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+			HttpOnly: cookieCfg.HttpOnly,
+			Secure:   cookieCfg.Secure,
+			SameSite: http.SameSiteLaxMode,
+		})
 		web.WriteJSON(w, http.StatusOK, logoutResponse{Message: "Logged out successfully."})
 		slog.Info("auth.logout: logged out")
 	}

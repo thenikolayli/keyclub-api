@@ -13,12 +13,12 @@ func MustGenerateToken() string {
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
-	return base64.StdEncoding.EncodeToString(b)
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(b)
 }
 
 // Hashes a token using SHA-256
 // for use in authentication
 func MustHashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
-	return base64.StdEncoding.EncodeToString(hash[:])
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
 }

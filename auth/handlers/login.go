@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"keyclub-api/auth"
 	"keyclub-api/email"
+	"keyclub-api/config"
 	"keyclub-api/web"
 	"log/slog"
 	"net/http"
@@ -42,7 +43,7 @@ type loginWaitResponse struct {
 
 // New login attempt: creates a pending login, sends magic link email, and returns a cookie with the ID
 // Existing login attempt: verifies the attempt ID and email correspond to an existing unexpired uncompleted pending login, if yes: does literally nothing, otherwise: does New Login Attempt
-func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig email.SMTPConfig, frontendURL string) http.HandlerFunc {
+func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig email.SMTPConfig, frontendURL string, cookieCfg config.CookieConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.UserFromContext(r.Context())
 		if ok {
@@ -80,16 +81,16 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 
 		user, err = auth.GetUserByEmail(r.Context(), req.Email, db)
 		if errors.Is(err, auth.UserNotFoundError) {
-			newAttemptIDCookie := http.Cookie{
+			http.SetCookie(w, &http.Cookie{
 				Name:     "attempt_id",
 				Value:    auth.MustGenerateToken(),
-				Path:     "/",
+				Path:     cookieCfg.Path,
+				Domain:   cookieCfg.Domain,
 				MaxAge:   int(pendingLoginExpiry.Seconds()),
-				HttpOnly: true,
-				Secure:   true,
+				HttpOnly: cookieCfg.HttpOnly,
+				Secure:   cookieCfg.Secure,
 				SameSite: http.SameSiteLaxMode,
-			}
-			http.SetCookie(w, &newAttemptIDCookie)
+			})
 			web.WriteJSON(w, http.StatusAccepted, loginStartResponse{Message: "If an account exists with this email, a magic link email will be sent."})
 			slog.Info("auth.login_start: user not found (generic success)", "email", req.Email)
 			return
@@ -118,16 +119,16 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 			return
 		}
 
-		newAttemptIDCookie := http.Cookie{
+		http.SetCookie(w, &http.Cookie{
 			Name:     "attempt_id",
 			Value:    id,
-			Path:     "/",
+			Path:     cookieCfg.Path,
+			Domain:   cookieCfg.Domain,
 			MaxAge:   int(pendingLoginExpiry.Seconds()),
-			HttpOnly: true,
-			Secure:   true,
+			HttpOnly: cookieCfg.HttpOnly,
+			Secure:   cookieCfg.Secure,
 			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(w, &newAttemptIDCookie)
+		})
 		web.WriteJSON(w, http.StatusAccepted, loginStartResponse{Message: "If an account exists with this email, a magic link email will be sent."})
 		slog.Info("auth.login_start: started", "email", req.Email, "user_id", user.ID, "attempt_id", id)
 	}
@@ -136,7 +137,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 // Confirms that an attempt id cookies exists, awaits the user to verify the login via the magic link email
 // If the cookie doesn't exist, creates a dummy one that will be deleted at the end
 // Deletes cookie at the end
-func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDuration time.Duration) http.HandlerFunc {
+func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDuration time.Duration, cookieCfg config.CookieConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.UserFromContext(r.Context())
 		if ok {
@@ -179,18 +180,27 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 			return
 		}
 
-		attemptIDCookie.MaxAge = 0
-		newSessionCookie := http.Cookie{
+		http.SetCookie(w, &http.Cookie{
+			Name:     "attempt_id",
+			Value:    "",
+			Path:     cookieCfg.Path,
+			Domain:   cookieCfg.Domain,
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+			HttpOnly: cookieCfg.HttpOnly,
+			Secure:   cookieCfg.Secure,
+			SameSite: http.SameSiteLaxMode,
+		})
+		http.SetCookie(w, &http.Cookie{
 			Name:     "session",
 			Value:    sessionToken,
-			Path:     "/",
+			Path:     cookieCfg.Path,
+			Domain:   cookieCfg.Domain,
 			MaxAge:   int(sessionDuration.Seconds()),
-			HttpOnly: true,
-			Secure:   true,
+			HttpOnly: cookieCfg.HttpOnly,
+			Secure:   cookieCfg.Secure,
 			SameSite: http.SameSiteLaxMode,
-		}
-		http.SetCookie(w, attemptIDCookie)
-		http.SetCookie(w, &newSessionCookie)
+		})
 		web.WriteJSON(w, http.StatusOK, loginWaitResponse{Message: "Login confirmed. You can return to the login page."})
 		slog.Info("auth.login_wait: verified", "attempt_id", attemptIDCookie.Value)
 	}

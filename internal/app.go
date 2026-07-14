@@ -5,17 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"keyclub-api/auth"
+	"keyclub-api/config"
+	"keyclub-api/email"
 	"keyclub-api/google"
 	"keyclub-api/sync"
 	"log"
 	"log/slog"
 	"net/http"
+	"net/smtp"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 
 	authHandlers "keyclub-api/auth/handlers"
 	eventsHandlers "keyclub-api/events/handlers"
@@ -23,7 +28,7 @@ import (
 )
 
 type App struct {
-	Config       Config
+	Config       config.Config
 	DB           *sqlx.DB
 	GoogleConfig google.GoogleConfig
 	MemberSync   sync.SyncState
@@ -62,10 +67,10 @@ func (a *App) Start(addr string) error {
 	scheduler.Start()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /auth/login/start", authHandlers.LoginStartHandler(a.DB, a.Config.Durations.PendingLoginExpiryDuration, a.Config.SMTPConfig, a.Config.FrontendURL))
-	mux.HandleFunc("GET /auth/login/wait", authHandlers.LoginWaitHandler(a.DB, a.Config.Durations.LoginWaitTimeout, a.Config.Durations.SessionDuration))
+	mux.HandleFunc("POST /auth/login/start", authHandlers.LoginStartHandler(a.DB, a.Config.Durations.PendingLoginExpiryDuration, a.Config.SMTPConfig, a.Config.FrontendURL, a.Config.CookieConfig))
+	mux.HandleFunc("GET /auth/login/wait", authHandlers.LoginWaitHandler(a.DB, a.Config.Durations.LoginWaitTimeout, a.Config.Durations.SessionDuration, a.Config.CookieConfig))
 	mux.HandleFunc("POST /auth/login/verify", authHandlers.LoginVerifyHandler(a.DB))
-	mux.HandleFunc("GET /auth/logout", authHandlers.LogoutHandler(a.DB))
+	mux.HandleFunc("GET /auth/logout", authHandlers.LogoutHandler(a.DB, a.Config.CookieConfig))
 	mux.HandleFunc("GET /auth/me", authHandlers.MeHandler(a.DB))
 
 	mux.HandleFunc("POST /members/hours", membersHandlers.HoursHandler(a.DB))
@@ -108,4 +113,44 @@ func (a *App) Start(addr string) error {
 		slog.Error("app: scheduler shutdown error", "error", err)
 	}
 	return nil
+}
+
+func LoadConfig() config.Config {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	return config.Config{
+		SMTPConfig: email.SMTPConfig{
+			Address:           "smtp.gmail.com:587",
+			User:              "jhskeyclub21@gmail.com",
+			Auth:              smtp.PlainAuth("", "jhskeyclub21@gmail.com", os.Getenv("SMTP_PASSWORD"), "smtp.gmail.com"),
+			EmailTemplatePath: "maizzle/build_production",
+		},
+
+		DBConfig: config.DBConfig{
+			SQLitePath:     os.Getenv("DB_SQLITE_PATH"),
+			MigrationsPath: os.Getenv("DB_MIGRATIONS_PATH"),
+		},
+
+		Durations: config.Durations{
+			PendingLoginExpiryDuration: 1 * time.Hour,
+			LoginWaitTimeout:           5 * time.Minute,
+			InviteExpiryDuration:       24 * time.Hour,
+			SessionDuration:            14 * 24 * time.Hour,
+			MemberSyncTimeout:          1 * time.Hour,
+			EventSyncTimeout:           1 * time.Hour,
+		},
+
+		CookieConfig: config.CookieConfig{
+			Path:     "/",
+			Domain:   os.Getenv("COOKIE_DOMAIN"),
+			Secure:   os.Getenv("COOKIE_SECURE") == "true",
+			HttpOnly: true,
+		},
+
+		FrontendURL: os.Getenv("FRONTEND_URL"),
+		APIURL:      os.Getenv("API_URL"),
+		Officers:    strings.Split(os.Getenv("OFFICERS"), ", "),
+	}
 }
