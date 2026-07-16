@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"keyclub-api/config"
 	"keyclub-api/web"
 	"log/slog"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
-
-type contextKey struct{}
 
 // CORS middleware, so the browser can accept responses from the server
 func CORSMiddleware(allowedOrigin string, next http.Handler) http.Handler {
@@ -31,7 +30,7 @@ func CORSMiddleware(allowedOrigin string, next http.Handler) http.Handler {
 
 // Intercepts every API request and checks if the user is authenticated
 // Stores user info in the request context
-func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Duration) http.Handler {
+func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Duration, cookieCfg config.CookieConfig) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sessionCookie, err := r.Cookie("session")
 		if err == nil {
@@ -49,8 +48,17 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 				return
 			}
 			if !valid {
-				sessionCookie.MaxAge = 0
-				http.SetCookie(w, sessionCookie)
+				http.SetCookie(w, &http.Cookie{
+					Name:     "session",
+					Value:    "",
+					Path:     cookieCfg.Path,
+					Domain:   cookieCfg.Domain,
+					MaxAge:   -1,
+					Expires:  time.Unix(0, 0),
+					HttpOnly: cookieCfg.HttpOnly,
+					Secure:   cookieCfg.Secure,
+					SameSite: http.SameSiteLaxMode,
+				})
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -73,12 +81,14 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 				slog.Error("auth.middleware: get user by id failed", "error", err)
 				return
 			}
-			r = r.WithContext(context.WithValue(r.Context(), contextKey{}, user))
+			r = r.WithContext(context.WithValue(r.Context(), "session_user", user))
 			next.ServeHTTP(w, r)
 			return
 		} else if errors.Is(err, http.ErrNoCookie) {
 			// Do nothing if there's no session cookie
+			slog.Info("auth.middleware: no session cookie found, proceeding without user context")
 		} else {
+			// If some other error occurred
 			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.middleware: read session cookie failed", "error", err)
 			return
@@ -90,6 +100,7 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 // Safe getter function for the user from request context
 // Using contextKey as the key to avoid potential collisions with other context keys
 func UserFromContext(ctx context.Context) (User, bool) {
-	user, ok := ctx.Value(contextKey{}).(User)
+	user, ok := ctx.Value("session_user").(User)
+	// slog.Info("auth.middleware: user from context", "user", user, "ok", ok, "full_context", ctx.Value("session_user"))
 	return user, ok
 }

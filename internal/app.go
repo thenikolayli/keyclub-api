@@ -79,7 +79,7 @@ func (a *App) Start(addr string) error {
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: auth.CORSMiddleware(a.Config.FrontendURL, auth.SessionMiddleware(a.DB, mux, a.Config.Durations.SessionDuration)),
+		Handler: auth.CORSMiddleware(a.Config.FrontendURL, auth.SessionMiddleware(a.DB, mux, a.Config.Durations.SessionDuration, a.Config.CookieConfig)),
 	}
 
 	// Create a channel to receive server errors
