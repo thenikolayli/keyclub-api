@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"keyclub-api/auth"
-	"keyclub-api/email"
 	"keyclub-api/config"
+	"keyclub-api/email"
 	"keyclub-api/web"
 	"log/slog"
 	"net/http"
@@ -108,12 +108,12 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 			return
 		}
 
-		emailTemplate := email.PendingLoginEmailTemplate{
+		emailTemplate := auth.PendingLoginEmailTemplate{
 			Subject:   "Attempted Login",
 			FirstName: user.FirstName,
 			MagicLink: fmt.Sprintf("%s/admin/verifylogin?token=%s", frontendURL, verifyToken),
 		}
-		if err := email.SendPendingLoginEmail(emailTemplate, req.Email, smtpConfig); err != nil {
+		if err := auth.SendPendingLoginEmail(emailTemplate, req.Email, smtpConfig); err != nil {
 			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_start: send magic link email failed", "error", err, "email", req.Email, "user_id", user.ID, "attempt_id", id)
 			return
