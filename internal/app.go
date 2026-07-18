@@ -72,6 +72,8 @@ func (a *App) Start(addr string) error {
 	mux.HandleFunc("POST /auth/login/verify", authHandlers.LoginVerifyHandler(a.DB))
 	mux.HandleFunc("GET /auth/logout", authHandlers.LogoutHandler(a.DB, a.Config.CookieConfig))
 	mux.HandleFunc("GET /auth/me", authHandlers.MeHandler(a.DB))
+	mux.HandleFunc("POST /auth/invite/create", authHandlers.InviteCreateHandler(a.DB, a.Config.Durations.InviteExpiryDuration, a.Config.FrontendURL, a.Config.SMTPConfig))
+	mux.HandleFunc("POST /auth/invite/accept", authHandlers.InviteAcceptHandler(a.DB))
 
 	mux.HandleFunc("POST /members/hours", membersHandlers.HoursHandler(a.DB))
 

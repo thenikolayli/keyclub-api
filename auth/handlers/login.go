@@ -26,7 +26,7 @@ type verifyLoginResponse struct {
 }
 
 type errorResponse struct {
-	Error string `json:"error"`
+	Message string `json:"message"`
 }
 
 type loginStartRequest struct {
@@ -54,7 +54,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 
 		var req loginStartRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Error: "Invalid json."})
+			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Message: "Invalid json."})
 			slog.Error("auth.login_start: decode json failed", "error", err)
 			return
 		}
@@ -63,7 +63,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 		if err == nil {
 			isNew, err := auth.IsNewLoginAttempt(r.Context(), req.Email, attemptIDCookie.Value, db)
 			if err != nil {
-				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 				slog.Error("auth.login_start: check existing attempt failed", "error", err, "email", req.Email, "attempt_id", attemptIDCookie.Value)
 				return
 			}
@@ -74,7 +74,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 			}
 		} else if errors.Is(err, http.ErrNoCookie) {
 		} else {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_start: read attempt_id cookie failed", "error", err)
 			return
 		}
@@ -96,14 +96,14 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 			return
 		}
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_start: get user by email failed", "error", err, "email", req.Email)
 			return
 		}
 
 		id, verifyToken, err := auth.CreatePendingLogin(r.Context(), user, db, pendingLoginExpiry)
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_start: create pending login failed", "error", err, "email", req.Email, "user_id", user.ID)
 			return
 		}
@@ -114,7 +114,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 			MagicLink: fmt.Sprintf("%s/admin/verifylogin?token=%s", frontendURL, verifyToken),
 		}
 		if err := auth.SendPendingLoginEmail(emailTemplate, req.Email, smtpConfig); err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_start: send magic link email failed", "error", err, "email", req.Email, "user_id", user.ID, "attempt_id", id)
 			return
 		}
@@ -149,11 +149,11 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 		attemptIDCookie, err := r.Cookie("attempt_id")
 		if err == nil {
 		} else if errors.Is(err, http.ErrNoCookie) {
-			web.WriteJSON(w, http.StatusNotFound, errorResponse{Error: "Attempt ID cookie not found."})
+			web.WriteJSON(w, http.StatusNotFound, errorResponse{Message: "Attempt ID cookie not found."})
 			slog.Info("auth.login_wait: attempt_id cookie missing")
 			return
 		} else {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_wait: read attempt_id cookie failed", "error", err)
 			return
 		}
@@ -162,20 +162,20 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 		defer unregister()
 
 		if !waitForLoginVerified(r.Context(), wait, loginWaitTimeout) {
-			web.WriteJSON(w, http.StatusRequestTimeout, errorResponse{Error: "Login timed out waiting for email confirmation."})
+			web.WriteJSON(w, http.StatusRequestTimeout, errorResponse{Message: "Login timed out waiting for email confirmation."})
 			slog.Info("auth.login_wait: timed out", "attempt_id", attemptIDCookie.Value)
 			return
 		}
 
 		userID, err := auth.GetUserIDByAttemptID(r.Context(), attemptIDCookie.Value, db)
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_wait: get user id by attempt id failed", "error", err, "attempt_id", attemptIDCookie.Value)
 			return
 		}
 		sessionToken, err := auth.CreateSession(r.Context(), userID, db, sessionDuration)
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_wait: create session failed", "error", err, "user_id", userID)
 			return
 		}
@@ -209,16 +209,9 @@ func LoginWaitHandler(db *sqlx.DB, loginWaitTimeout time.Duration, sessionDurati
 // Verifies a pending login once a user clicks the magic link in the email
 func LoginVerifyHandler(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth.UserFromContext(r.Context())
-		if ok {
-			web.WriteJSON(w, http.StatusOK, verifyLoginResponse{Message: "You are already logged in."})
-			slog.Info("auth.login_verify: user already logged in", "user_id", user.ID)
-			return
-		}
-
 		var req verifyLoginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Error: "Invalid json."})
+			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Message: "Invalid json."})
 			slog.Error("auth.login_verify: decode json failed", "error", err)
 			return
 		}
@@ -227,12 +220,12 @@ func LoginVerifyHandler(db *sqlx.DB) http.HandlerFunc {
 		if errors.Is(err, auth.PendingLoginNotFoundError) ||
 			errors.Is(err, auth.PendingLoginExpiredError) ||
 			errors.Is(err, auth.PendingLoginAlreadyUsedError) {
-			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Error: "Invalid token or expired."})
+			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Message: "Invalid token or expired."})
 			slog.Info("auth.login_verify: invalid/expired token", "error", err)
 			return
 		}
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_verify: verify pending login failed", "error", err)
 			return
 		}

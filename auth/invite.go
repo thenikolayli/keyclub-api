@@ -25,18 +25,18 @@ type Invite struct {
 	AcceptedAt *time.Time `db:"accepted_at"`
 }
 
-type InviteEmail struct {
-	Subject    string
-	FirstName  string
-	RoleString string
-	MagicLink  string
+type InviteEmailTemplate struct {
+	Subject   string
+	FirstName string
+	Role      string
+	MagicLink string
 }
 
 var InviteNotFoundError = errors.New("Invite not found")
 var InviteExpiredError = errors.New("Invite expired")
 var InviteAlreadyUsedError = errors.New("Invite already used")
 
-func SendInviteEmail(emailTemplate InviteEmail, to string, smtpConfig email.SMTPConfig) error {
+func SendInviteEmail(emailTemplate InviteEmailTemplate, to string, smtpConfig email.SMTPConfig) error {
 	template, err := template.ParseFiles(smtpConfig.EmailTemplatePath + "/invite.html")
 	if err != nil {
 		return err
