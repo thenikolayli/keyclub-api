@@ -55,6 +55,7 @@ func InviteCreateHandler(db *sqlx.DB, inviteDuration time.Duration, frontendURL 
 			slog.Info("auth.invite: validation failed", "error", err)
 			return
 		}
+		req.Email = strings.ToLower(req.Email)
 
 		token, err := auth.CreateInvite(r.Context(), db, inviteDuration, req.Email, req.FirstName, req.LastName, req.Role)
 		if err != nil {
