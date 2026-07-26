@@ -10,6 +10,7 @@ import (
 	"keyclub-api/web"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +34,21 @@ type inviteAcceptRequest struct {
 
 type inviteAcceptResponse struct {
 	Message string `json:"message"`
+}
+
+type listInvitesRequest struct {
+	Skip  int `json:"skip"`
+	Limit int `json:"limit"`
+}
+
+type listInvite struct {
+	Email      string     `json:"email"`
+	FirstName  string     `json:"firstName"`
+	LastName   string     `json:"lastName"`
+	Role       string     `json:"role"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	ExpiresAt  time.Time  `json:"expiresAt"`
+	AcceptedAt *time.Time `json:"acceptedAt"`
 }
 
 func InviteCreateHandler(db *sqlx.DB, inviteDuration time.Duration, frontendURL string, smtpConfig email.SMTPConfig) http.HandlerFunc {
@@ -59,11 +75,10 @@ func InviteCreateHandler(db *sqlx.DB, inviteDuration time.Duration, frontendURL 
 
 		token, err := auth.CreateInvite(r.Context(), db, inviteDuration, req.Email, req.FirstName, req.LastName, req.Role)
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Failed to create invite."})
-			slog.Error("auth.invite: create invite failed", "error", err)
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
+			slog.Error("auth.invite: create invite failed", "error", err, "email", req.Email)
 			return
 		}
-
 		emailTemplate := auth.InviteEmailTemplate{
 			Subject:   "Key Club Invite",
 			FirstName: req.FirstName,
@@ -116,6 +131,52 @@ func InviteAcceptHandler(db *sqlx.DB) http.HandlerFunc {
 
 		web.WriteJSON(w, http.StatusOK, inviteAcceptResponse{Message: "Invite accepted successfully."})
 		slog.Info("auth.invite_accept: invite accepted successfully")
+	}
+}
+
+func ListInvitesHandler(db *sqlx.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth.UserFromContext(r.Context())
+		if !ok || user.Role != "officer" {
+			web.WriteJSON(w, http.StatusUnauthorized, errorResponse{Message: "Unauthorized."})
+			slog.Info("auth.invite: user is unauthorized")
+			return
+		}
+
+		skip, err := strconv.Atoi(r.URL.Query().Get("skip"))
+		if err != nil || skip < 0 {
+			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Message: "Invalid skip parameter."})
+			slog.Error("auth.invite: invalid skip parameter", "error", err)
+			return
+		}
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if err != nil || limit <= 0 {
+			web.WriteJSON(w, http.StatusBadRequest, errorResponse{Message: "Invalid limit parameter."})
+			slog.Error("auth.invite: invalid limit parameter", "error", err)
+			return
+		}
+
+		invites, err := auth.ListInvites(r.Context(), db, skip, limit)
+		if err != nil {
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Failed to list users."})
+			slog.Error("auth.invite: list users failed", "error", err)
+			return
+		}
+		listInvites := make([]listInvite, len(invites))
+		for i, invite := range invites {
+			listInvites[i] = listInvite{
+				Email:      invite.Email,
+				FirstName:  invite.FirstName,
+				LastName:   invite.LastName,
+				Role:       invite.Role,
+				CreatedAt:  invite.CreatedAt,
+				ExpiresAt:  invite.ExpiresAt,
+				AcceptedAt: invite.AcceptedAt,
+			}
+		}
+
+		web.WriteJSON(w, http.StatusOK, listInvites)
+		slog.Info("auth.invite: invites listed", "count", len(invites))
 	}
 }
 

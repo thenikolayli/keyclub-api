@@ -71,9 +71,16 @@ func (a *App) Start(addr string) error {
 	mux.HandleFunc("GET /auth/login/wait", authHandlers.LoginWaitHandler(a.DB, a.Config.Durations.LoginWaitTimeout, a.Config.Durations.SessionDuration, a.Config.CookieConfig))
 	mux.HandleFunc("POST /auth/login/verify", authHandlers.LoginVerifyHandler(a.DB))
 	mux.HandleFunc("GET /auth/logout", authHandlers.LogoutHandler(a.DB, a.Config.CookieConfig))
+
 	mux.HandleFunc("GET /auth/me", authHandlers.MeHandler(a.DB))
-	mux.HandleFunc("POST /auth/invite/create", authHandlers.InviteCreateHandler(a.DB, a.Config.Durations.InviteExpiryDuration, a.Config.FrontendURL, a.Config.SMTPConfig))
-	mux.HandleFunc("POST /auth/invite/accept", authHandlers.InviteAcceptHandler(a.DB))
+
+	mux.HandleFunc("POST /auth/invites/create", authHandlers.InviteCreateHandler(a.DB, a.Config.Durations.InviteExpiryDuration, a.Config.FrontendURL, a.Config.SMTPConfig))
+	mux.HandleFunc("POST /auth/invites/accept", authHandlers.InviteAcceptHandler(a.DB))
+	mux.HandleFunc("GET /auth/invites", authHandlers.ListInvitesHandler(a.DB))
+
+	mux.HandleFunc("GET /auth/users", authHandlers.ListUsersHandler(a.DB))
+	mux.HandleFunc("PUT /auth/users/{id}", authHandlers.UpdateUserHandler(a.DB))
+	mux.HandleFunc("DELETE /auth/users/{id}", authHandlers.DeleteUserHandler(a.DB))
 
 	mux.HandleFunc("POST /members/hours", membersHandlers.HoursHandler(a.DB))
 

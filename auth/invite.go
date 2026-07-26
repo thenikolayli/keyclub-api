@@ -136,3 +136,12 @@ func AcceptInvite(ctx context.Context, queryer sqlx.ExtContext, token string) er
 
 	return nil
 }
+
+func ListInvites(ctx context.Context, db *sqlx.DB, skip, limit int) ([]Invite, error) {
+	var invites []Invite
+	err := db.SelectContext(ctx, &invites, "SELECT * FROM invites LIMIT ? OFFSET ?", limit, skip)
+	if err != nil {
+		return []Invite{}, err
+	}
+	return invites, nil
+}

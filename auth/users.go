@@ -14,12 +14,13 @@ import (
 // Role level represents their level: member, leader, officer
 // Though, members shouldn't have roles, technically...
 type User struct {
-	ID        string    `db:"id"`
-	Email     string    `db:"email"`
-	FirstName string    `db:"first_name"`
-	LastName  string    `db:"last_name"`
-	Role      string    `db:"role"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        string    `db:"id" json:"id"`
+	Email     string    `db:"email" json:"email"`
+	FirstName string    `db:"first_name" json:"firstName"`
+	LastName  string    `db:"last_name" json:"lastName"`
+	Role      string    `db:"role" json:"role"`
+	CreatedAt time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt *time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 var UserNotFoundError = errors.New("User not found")
@@ -61,6 +62,31 @@ func GetUserByID(ctx context.Context, id string, db *sqlx.DB) (User, error) {
 		return User{}, err
 	}
 	return user, nil
+}
+
+func ListUsers(ctx context.Context, db *sqlx.DB, skip, limit int) ([]User, error) {
+	var users []User
+	err := db.SelectContext(ctx, &users, "SELECT * FROM users LIMIT ? OFFSET ?", limit, skip)
+	if err != nil {
+		return []User{}, err
+	}
+	return users, nil
+}
+
+func UpdateUser(ctx context.Context, db *sqlx.DB, updatedUser User) error {
+	now := time.Now()
+	updatedUser.UpdatedAt = &now
+	_, err := db.NamedExecContext(
+		ctx,
+		`UPDATE users SET email = :email, first_name = :first_name, last_name = :last_name, role = :role, updated_at = :updated_at WHERE id = :id`,
+		updatedUser,
+	)
+	return err
+}
+
+func DeleteUser(ctx context.Context, db *sqlx.DB, userID string) error {
+	_, err := db.ExecContext(ctx, "DELETE FROM users WHERE id = ?", userID)
+	return err
 }
 
 // Creates a new user in the database
