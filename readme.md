@@ -39,6 +39,7 @@ The app loads a `.env` file at startup (via `godotenv`). All variables below are
 cd maizzle && npm install && npm run build
 
 # Create a user from the command line
+# role must be member, leader, or officer
 go run ./internal/cmd/adduser --email <email> --first <first> --last <last> [--role member]
 
 # Run the server

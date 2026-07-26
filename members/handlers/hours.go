@@ -42,13 +42,12 @@ func HoursHandler(db *sqlx.DB) http.HandlerFunc {
 			return
 		}
 
-		formattedMember := member.Format()
 		web.WriteJSON(w, http.StatusOK, hoursResponse{
-			Name:      formattedMember.Name,
-			AllHours:  formattedMember.AllHours,
-			TermHours: formattedMember.TermHours,
-			GradYear:  formattedMember.GradYear,
-			Class:     formattedMember.Class,
+			Name:      member.Name,
+			AllHours:  member.AllHours,
+			TermHours: member.TermHours,
+			GradYear:  member.GradYear,
+			Class:     member.Class,
 		})
 	}
 }

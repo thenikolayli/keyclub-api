@@ -28,7 +28,7 @@ func SyncMembers(ctx context.Context, googleConfig google.GoogleConfig, memberSy
 		return fmt.Errorf("Failed to update members: %v", err)
 	}
 
-	formattedMemberStructs := getMemberStructs(memberValueRanges)
+	memberStructs := getMemberStructs(memberValueRanges)
 
 	transaction, err := db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -37,7 +37,7 @@ func SyncMembers(ctx context.Context, googleConfig google.GoogleConfig, memberSy
 	}
 	defer transaction.Rollback()
 
-	for _, each := range formattedMemberStructs {
+	for _, each := range memberStructs {
 		if err := members.UpsertMember(ctx, each, transaction); err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ func SyncMembers(ctx context.Context, googleConfig google.GoogleConfig, memberSy
 	}
 
 	memberSync.LastUpdated = time.Now()
-	slog.Info("sync.members: completed", "count", len(formattedMemberStructs))
+	slog.Info("sync.members: completed", "count", len(memberStructs))
 	return nil
 }
 
@@ -102,14 +102,9 @@ func getMemberStructs(memberValueRanges []*sheets.ValueRange) []members.Member {
 	normalizedPaidDues := Normalize(memberValueRanges[10].Values, memberValueRangesLength, Parsers.Bool)
 
 	for i := range memberValueRangesLength {
-		name := members.NewName(normalizedNames[i])
-
 		formattedMemberArray[i] = members.Member{
 			ID:            uuid.New().String(),
-			Firstname:     name.First,
-			Nickname:      name.Nick,
-			Middlename:    name.Middle,
-			Lastname:      name.Last,
+			Name:          normalizedNames[i],
 			AllHours:      normalizedAllHours[i],
 			TermHours:     normalizedTermHours[i],
 			GradYear:      normalizedGradYears[i],
