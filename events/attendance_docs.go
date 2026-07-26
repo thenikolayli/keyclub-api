@@ -23,8 +23,8 @@ type AttendanceDoc struct {
 // it's just the event info from the sign up sheet, so whatever is on there gets saved
 // doesn't save to db because updates to the db should only happen when fetching data from the sheets
 // event sign up sheets are guaranteed to have at least two tables
-func ParseAttendanceDoc(ctx context.Context, documentId string, docsService *docs.Service) (AttendanceDoc, error) {
-	document, err := docsService.Documents.Get(documentId).Context(ctx).Do()
+func ParseAttendanceDoc(ctx context.Context, documentID string, docsService *docs.Service) (AttendanceDoc, error) {
+	document, err := docsService.Documents.Get(documentID).Context(ctx).Do()
 	if err != nil {
 		return AttendanceDoc{}, fmt.Errorf("issue fetching document: %w", err)
 	}
@@ -91,7 +91,7 @@ func ParseAttendanceDoc(ctx context.Context, documentId string, docsService *doc
 			TotalHours:    totalHours,
 			Leaders:       eventInfo.Leaders,
 			MadeBy:        eventInfo.MadeBy,
-			SignUpUrl:     fmt.Sprintf("https://docs.google.com/document/d/%s/edit?tab=t.0", documentId),
+			SignUpUrl:     fmt.Sprintf("https://docs.google.com/document/d/%s/edit?tab=t.0", documentID),
 			Description:   description,
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
@@ -329,12 +329,15 @@ func getParagraphText(paragraph *docs.Paragraph) string {
 
 // https://docs.google.com/document/d/id-example/edit?tab=t.0
 // https://docs.google.com/document/u/0/d/1x8B8h9ZFNIUcartcK7JLDUHjmnMTu62LP8hNzK82xgI/mobilebasic
+// https://docs.google.com/document/d/1az1JXExSu5MLe3_vanaZ-x19nrbDJoy0H6TLfhIh1vI/edit?usp=sharing
 // extracts a Google docs id from the url
 // splits it at /d/ and gets the second part, then splits it at /edit and gets the first one
 func DocsUrlToID(url string) string {
 	var id string
 	if !strings.HasPrefix(url, "https://docs.google.com/document/d/") {
-		id = strings.Split(url, "id=")[1]
+		if len(strings.Split(url, "id=")) > 1 {
+			id = strings.Split(url, "id=")[1]
+		}
 		id = strings.Split(id, "&")[0]
 	} else {
 		id = strings.Split(url, "/d/")[1]

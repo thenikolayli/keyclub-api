@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"keyclub-api/events"
 	"keyclub-api/web"
@@ -58,7 +56,6 @@ func SearchHandler(db *sqlx.DB) http.HandlerFunc {
 			SELECT * FROM events
 			WHERE start_time BETWEEN ? AND ?
 			AND end_time BETWEEN ? AND ?
-			AND (julianday(end_time) - julianday(start_time)) * 24 BETWEEN ? AND ?
 			AND date BETWEEN ? AND ?
 			AND n_of_slots - n_of_volunteers BETWEEN ? AND ?
 		`
@@ -66,23 +63,22 @@ func SearchHandler(db *sqlx.DB) http.HandlerFunc {
 		err := db.SelectContext(r.Context(), &events, query,
 			minTime, maxTime,
 			minTime, maxTime,
-			minLength, maxLength,
 			minDate, maxDate,
 			minSpots, maxSpots,
 		)
-		if errors.Is(err, sql.ErrNoRows) {
-			web.WriteJSON(w, http.StatusNotFound, errorResponse{Message: "No events found."})
-			slog.Error("events.search: no events found")
-			return
-		}
 		if err != nil {
 			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("events.search: select events failed", "error", err)
 			return
 		}
+		if len(events) == 0 {
+			web.WriteJSON(w, http.StatusNotFound, errorResponse{Message: "No events found."})
+			slog.Error("events.search: no events found")
+			return
+		}
 
-		formattedEvents := make([]formattedEvent, len(events))
-		for i, event := range events {
+		formattedEvents := make([]formattedEvent, 0, len(events))
+		for _, event := range events {
 			endTime, err := time.Parse("15:04:05", event.EndTime)
 			if err != nil {
 				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
@@ -95,19 +91,29 @@ func SearchHandler(db *sqlx.DB) http.HandlerFunc {
 				slog.Error("events.search: parse start time failed", "error", err)
 				return
 			}
-			length := endTime.Sub(startTime)
+			length := endTime.Sub(startTime).Hours()
 
-			formattedEvents[i] = formattedEvent{
+			if length < minLength || length > maxLength {
+				continue
+			}
+
+			formattedEvents = append(formattedEvents, formattedEvent{
 				Name:         event.Name,
 				Date:         event.Date,
 				StartTime:    event.StartTime,
 				EndTime:      event.EndTime,
-				Length:       length.Hours(),
+				Length:       length,
 				Address:      event.Address,
 				NofOpenSlots: event.NofSlots - event.NofVolunteers,
 				SignUpUrl:    event.SignUpUrl,
 				Description:  event.Description,
-			}
+			})
+		}
+
+		if len(formattedEvents) == 0 {
+			web.WriteJSON(w, http.StatusNotFound, errorResponse{Message: "No events found."})
+			slog.Error("events.search: no events found after filtering")
+			return
 		}
 
 		web.WriteJSON(w, http.StatusOK, formattedEvents)

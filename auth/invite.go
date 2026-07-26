@@ -37,13 +37,13 @@ var InviteExpiredError = errors.New("Invite expired")
 var InviteAlreadyUsedError = errors.New("Invite already used")
 
 func SendInviteEmail(emailTemplate InviteEmailTemplate, to string, smtpConfig email.SMTPConfig) error {
-	template, err := template.ParseFiles(smtpConfig.EmailTemplatePath + "/invite.html")
+	templateFile, err := template.ParseFiles(smtpConfig.EmailTemplatePath + "/invite.html")
 	if err != nil {
 		return err
 	}
 
 	buf := bytes.Buffer{}
-	if err := template.Execute(&buf, emailTemplate); err != nil {
+	if err := templateFile.Execute(&buf, emailTemplate); err != nil {
 		return err
 	}
 

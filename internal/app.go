@@ -78,6 +78,7 @@ func (a *App) Start(addr string) error {
 	mux.HandleFunc("POST /members/hours", membersHandlers.HoursHandler(a.DB))
 
 	mux.HandleFunc("POST /events/search", eventsHandlers.SearchHandler(a.DB))
+	mux.HandleFunc("POST /events/create", eventsHandlers.AddToCalendarHandler(a.GoogleConfig.CalendarID, a.GoogleConfig.DocsService, a.GoogleConfig.CalendarService))
 
 	server := &http.Server{
 		Addr:    addr,

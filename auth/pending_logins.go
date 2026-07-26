@@ -101,13 +101,13 @@ func IsNewLoginAttempt(ctx context.Context, email string, attemptID string, db *
 }
 
 func SendPendingLoginEmail(emailTemplate PendingLoginEmailTemplate, to string, smtpConfig email.SMTPConfig) error {
-	template, err := template.ParseFiles(smtpConfig.EmailTemplatePath + "/login.html")
+	templateFile, err := template.ParseFiles(smtpConfig.EmailTemplatePath + "/login.html")
 	if err != nil {
 		return err
 	}
 
 	buf := bytes.Buffer{}
-	if err := template.Execute(&buf, emailTemplate); err != nil {
+	if err := templateFile.Execute(&buf, emailTemplate); err != nil {
 		return err
 	}
 

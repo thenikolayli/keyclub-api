@@ -35,6 +35,8 @@ type MemberToken struct {
 	Token    string `db:"token"`
 }
 
+var MemberNotFoundError = errors.New("Member not found")
+
 // gets a member via name
 func GetMember(ctx context.Context, queryer sqlx.ExtContext, name string) (Member, error) {
 	tokenizedName := TokenizeName(name)
@@ -48,7 +50,7 @@ func GetMember(ctx context.Context, queryer sqlx.ExtContext, name string) (Membe
 	var result string
 	err := sqlx.GetContext(ctx, queryer, &result, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Member{}, err
+		return Member{}, MemberNotFoundError
 	}
 	if err != nil {
 		return Member{}, fmt.Errorf("Error occurred while fetching member: %v", err)
@@ -63,7 +65,7 @@ func GetMember(ctx context.Context, queryer sqlx.ExtContext, name string) (Membe
 		result,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Member{}, err
+		return Member{}, MemberNotFoundError
 	}
 	if err != nil {
 		return Member{}, fmt.Errorf("Error occurred while fetching member: %v", err)
@@ -75,7 +77,7 @@ func GetMember(ctx context.Context, queryer sqlx.ExtContext, name string) (Membe
 // upserts member into the database
 func UpsertMember(ctx context.Context, member Member, queryer sqlx.ExtContext) error {
 	result, err := GetMember(ctx, queryer, member.Name)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, MemberNotFoundError) {
 		_, insertErr := sqlx.NamedExecContext(
 			ctx,
 			queryer,
@@ -104,6 +106,7 @@ func UpsertMember(ctx context.Context, member Member, queryer sqlx.ExtContext) e
 
 		member.ID = result.ID
 		member.UpdatedAt = time.Now()
+		member.CreatedAt = result.CreatedAt
 
 		_, updateErr := sqlx.NamedExecContext(
 			ctx,

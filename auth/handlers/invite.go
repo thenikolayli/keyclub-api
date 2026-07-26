@@ -39,7 +39,7 @@ func InviteCreateHandler(db *sqlx.DB, inviteDuration time.Duration, frontendURL 
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok || user.Role != "officer" {
-			web.WriteJSON(w, http.StatusOK, loginStartResponse{Message: "Unauthorized."})
+			web.WriteJSON(w, http.StatusOK, errorResponse{Message: "Unauthorized."})
 			slog.Info("auth.invite: user is unauthorized")
 			return
 		}
@@ -119,21 +119,23 @@ func InviteAcceptHandler(db *sqlx.DB) http.HandlerFunc {
 }
 
 func (r inviteCreateRequest) Validate(db *sqlx.DB) error {
-	r.Email = strings.TrimSpace(r.Email)
-	r.FirstName = strings.TrimSpace(r.FirstName)
-	r.LastName = strings.TrimSpace(r.LastName)
-	r.Role = strings.TrimSpace(r.Role)
+	requestTrimmed := inviteCreateRequest{
+		Email:     strings.TrimSpace(r.Email),
+		FirstName: strings.TrimSpace(r.FirstName),
+		LastName:  strings.TrimSpace(r.LastName),
+		Role:      strings.TrimSpace(r.Role),
+	}
 
-	if r.Email == "" || r.FirstName == "" || r.LastName == "" || r.Role == "" {
+	if requestTrimmed.Email == "" || requestTrimmed.FirstName == "" || requestTrimmed.LastName == "" || requestTrimmed.Role == "" {
 		return fmt.Errorf("all fields are required")
 	}
 
-	_, err := auth.GetUserByEmail(context.Background(), r.Email, db)
+	_, err := auth.GetUserByEmail(context.Background(), requestTrimmed.Email, db)
 	if errors.Is(err, auth.UserNotFoundError) {
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to check if user exists: %v", err)
 	}
-	return fmt.Errorf("User with email %s already exists", r.Email)
+	return fmt.Errorf("User with email %s already exists", requestTrimmed.Email)
 }

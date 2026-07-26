@@ -69,13 +69,15 @@ func UpsertEvent(ctx context.Context, event Event, queryer sqlx.ExtContext) erro
 		slog.Error("events.events: lookup event failed", "error", err, "name", event.Name)
 		return fmt.Errorf("Issue upserting event: %v", err)
 	} else {
-		event.ID = result.ID // to update the correct row based on primary key (id)
+		event.ID = result.ID
 		event.UpdatedAt = time.Now()
+		event.CreatedAt = result.CreatedAt
 		_, updateErr := sqlx.NamedExecContext(
-			ctx, queryer,
+			ctx,
+			queryer,
 			`
 			UPDATE events SET 
-			name=:name, date=:date, start_time=:start_time, end_time=:end_time, address=:address, n_of_slots=:n_of_slots, n_of_volunteers=:n_of_volunteers, total_hours=:total_hours, leaders=:leaders, made_by=:made_by, sign_up_url=:sign_up_url, description=:description, updated_at=:updated_at
+			name=:name, date=:date, start_time=:start_time, end_time=:end_time, address=:address, n_of_slots=:n_of_slots, n_of_volunteers=:n_of_volunteers, total_hours=:total_hours, leaders=:leaders, made_by=:made_by, sign_up_url=:sign_up_url, description=:description, updated_at=:updated_at, created_at=:created_at
 			WHERE id=:id
 		`, event,
 		)

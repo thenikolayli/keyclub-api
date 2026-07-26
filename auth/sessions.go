@@ -64,14 +64,14 @@ func GetSessionByToken(ctx context.Context, token string, db *sqlx.DB) (Session,
 }
 
 // Checks if a session is valid
-func IsValidSession(ctx context.Context, session Session, db *sqlx.DB) (bool, error) {
+func IsValidSession(ctx context.Context, session Session, db *sqlx.DB) error {
 	if session.RevokedAt != nil {
-		return false, SessionRevokedError
+		return SessionRevokedError
 	}
 	if session.ExpiresAt.Before(time.Now()) {
-		return false, SessionExpiredError
+		return SessionExpiredError
 	}
-	return true, nil
+	return nil
 }
 
 // Revokes a session

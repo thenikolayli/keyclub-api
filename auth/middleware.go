@@ -35,19 +35,7 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 		sessionCookie, err := r.Cookie("session")
 		if err == nil {
 			session, err := GetSessionByToken(r.Context(), sessionCookie.Value, db)
-			if err != nil {
-				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
-				slog.Error("auth.middleware: get session by token failed", "error", err)
-				return
-			}
-
-			valid, err := IsValidSession(r.Context(), session, db)
-			if err != nil {
-				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
-				slog.Error("auth.middleware: is valid session failed", "error", err)
-				return
-			}
-			if !valid {
+			if errors.Is(err, SessionNotFoundError) {
 				http.SetCookie(w, &http.Cookie{
 					Name:     "session",
 					Value:    "",
@@ -62,6 +50,33 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 				next.ServeHTTP(w, r)
 				return
 			}
+			if err != nil {
+				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				slog.Error("auth.middleware: get session by token failed", "error", err)
+				return
+			}
+
+			err = IsValidSession(r.Context(), session, db)
+			if errors.Is(err, SessionRevokedError) || errors.Is(err, SessionExpiredError) {
+				http.SetCookie(w, &http.Cookie{
+					Name:     "session",
+					Value:    "",
+					Path:     cookieCfg.Path,
+					Domain:   cookieCfg.Domain,
+					MaxAge:   -1,
+					Expires:  time.Unix(0, 0),
+					HttpOnly: cookieCfg.HttpOnly,
+					Secure:   cookieCfg.Secure,
+					SameSite: http.SameSiteLaxMode,
+				})
+				next.ServeHTTP(w, r)
+				return
+			}
+			if err != nil {
+				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				slog.Error("auth.middleware: is valid session failed", "error", err)
+				return
+			}
 
 			// If less then half the session duration left until expiry, extend the session
 			if time.Until(session.ExpiresAt) < sessionDuration/2 {
@@ -72,6 +87,7 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 					return
 				}
 				sessionCookie.Expires = time.Now().Add(sessionDuration)
+				sessionCookie.MaxAge += int(sessionDuration.Seconds())
 				http.SetCookie(w, sessionCookie)
 			}
 

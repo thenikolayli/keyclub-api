@@ -72,8 +72,7 @@ func LoginStartHandler(db *sqlx.DB, pendingLoginExpiry time.Duration, smtpConfig
 				slog.Info("auth.login_start: attempt already exists", "email", req.Email, "attempt_id", attemptIDCookie.Value)
 				return
 			}
-		} else if errors.Is(err, http.ErrNoCookie) {
-		} else {
+		} else if !errors.Is(err, http.ErrNoCookie) {
 			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("auth.login_start: read attempt_id cookie failed", "error", err)
 			return
