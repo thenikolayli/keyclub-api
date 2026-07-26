@@ -34,14 +34,14 @@ type formattedEvent struct {
 }
 
 type errorResponse struct {
-	Error string `json:"error"`
+	Message string `json:"message"`
 }
 
 func SearchHandler(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req searchRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("events.search: decode request failed", "error", err)
 			return
 		}
@@ -71,12 +71,12 @@ func SearchHandler(db *sqlx.DB) http.HandlerFunc {
 			minSpots, maxSpots,
 		)
 		if errors.Is(err, sql.ErrNoRows) {
-			web.WriteJSON(w, http.StatusNotFound, errorResponse{Error: "No events found."})
+			web.WriteJSON(w, http.StatusNotFound, errorResponse{Message: "No events found."})
 			slog.Error("events.search: no events found")
 			return
 		}
 		if err != nil {
-			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+			web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 			slog.Error("events.search: select events failed", "error", err)
 			return
 		}
@@ -85,13 +85,13 @@ func SearchHandler(db *sqlx.DB) http.HandlerFunc {
 		for i, event := range events {
 			endTime, err := time.Parse("15:04:05", event.EndTime)
 			if err != nil {
-				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 				slog.Error("events.search: parse end time failed", "error", err)
 				return
 			}
 			startTime, err := time.Parse("15:04:05", event.StartTime)
 			if err != nil {
-				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 				slog.Error("events.search: parse start time failed", "error", err)
 				return
 			}

@@ -98,9 +98,7 @@ func SessionMiddleware(db *sqlx.DB, next http.Handler, sessionDuration time.Dura
 }
 
 // Safe getter function for the user from request context
-// Using contextKey as the key to avoid potential collisions with other context keys
 func UserFromContext(ctx context.Context) (User, bool) {
 	user, ok := ctx.Value("session_user").(User)
-	// slog.Info("auth.middleware: user from context", "user", user, "ok", ok, "full_context", ctx.Value("session_user"))
 	return user, ok
 }

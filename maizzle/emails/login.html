@@ -1,13 +1,40 @@
 <x-main>
-    <p class="text-sm text-zinc-800">
-        Hello, @{{ .FirstName }}! Someone is trying to log into your account. If
-        this was you, please click the button below. If this was not you, please
-        ignore this email and do NOT click that button...
-    </p>
-    <a
-        href="@{{ .MagicLink }}"
-        class="bg-yellow-300 px-4 py-2 rounded text-zinc-800 font-bold no-underline text-lg"
-        target="_blank"
-        >Confirm login</a
-    >
+  <table
+    role="presentation"
+    class="max-w-[600px] mx-auto"
+    cellpadding="0"
+    cellspacing="0"
+  >
+    <tr>
+      <td
+        class="w-full h-4 align-top bg-yellow-300 rounded-t-lg border-2 border-zinc-200"
+      ></td>
+    </tr>
+    <tr class="w-full bg-zinc-800">
+      <td class="py-2 text-center text-xl font-bold text-stone-50">
+        Confirm your login
+      </td>
+    </tr>
+    <tr class="w-full bg-stone-50">
+      <td class="p-8 text-center text-zinc-800">
+        <p class="text-sm text-zinc-800">
+          Hello, @{{ .FirstName }}! Someone is trying to log into your account.
+          If this was you, please click the button below. If this was not you,
+          please ignore this email and do NOT click that button.
+        </p>
+        <a
+          href="@{{ .MagicLink }}"
+          class="bg-yellow-300 px-4 py-2 rounded text-zinc-800 font-bold no-underline text-lg"
+          target="_blank"
+          >Confirm login</a
+        >
+      </td>
+    </tr>
+    <tr class="w-full bg-zinc-800 rounded-b-lg">
+      <td class="py-2 text-center text-sm text-zinc-400">
+        This is an automated message from the JHS Key Club. Please do not reply
+        to this email.
+      </td>
+    </tr>
+  </table>
 </x-main>

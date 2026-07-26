@@ -23,9 +23,6 @@ type User struct {
 }
 
 var UserNotFoundError = errors.New("User not found")
-var PendingLoginNotFoundError = errors.New("Pending login not found")
-var PendingLoginExpiredError = errors.New("Pending login expired")
-var PendingLoginAlreadyUsedError = errors.New("Pending login already used")
 
 // Gets a user by their email and returns them
 func GetUserByEmail(ctx context.Context, email string, db *sqlx.DB) (User, error) {
@@ -71,16 +68,19 @@ func CreateUser(ctx context.Context, db *sqlx.DB, email, firstName, lastName, ro
 	if role == "" {
 		role = "member"
 	}
+	id := uuid.New().String()
+	createdAt := time.Now()
 
 	user := User{
-		ID:        uuid.New().String(),
+		ID:        id,
 		Email:     email,
 		FirstName: firstName,
 		LastName:  lastName,
 		Role:      role,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 	}
-	_, err := db.NamedExecContext(ctx,
+	_, err := db.NamedExecContext(
+		ctx,
 		`INSERT INTO users (id, email, first_name, last_name, role, created_at) VALUES (:id, :email, :first_name, :last_name, :role, :created_at)`,
 		user,
 	)

@@ -22,7 +22,7 @@ func LogoutHandler(db *sqlx.DB, cookieCfg config.CookieConfig) http.HandlerFunc 
 		if err == nil {
 			err := auth.RevokeSessionBySessionToken(r.Context(), sessionCookie.Value, db)
 			if err != nil {
-				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Error: "Internal server error, contact the Webmaster."})
+				web.WriteJSON(w, http.StatusInternalServerError, errorResponse{Message: "Internal server error, contact the Webmaster."})
 				slog.Error("auth.logout: revoke session by session token failed", "error", err)
 				return
 			}

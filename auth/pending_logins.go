@@ -1,9 +1,12 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
+	"html/template"
+	"keyclub-api/email"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +22,16 @@ type PendingLogin struct {
 	ExpiresAt       time.Time  `db:"expires_at"`
 	CompletedAt     *time.Time `db:"completed_at"`
 }
+
+type PendingLoginEmailTemplate struct {
+	Subject   string
+	FirstName string
+	MagicLink string
+}
+
+var PendingLoginNotFoundError = errors.New("Pending login not found")
+var PendingLoginExpiredError = errors.New("Pending login expired")
+var PendingLoginAlreadyUsedError = errors.New("Pending login already used")
 
 // Creates a pending login for the given user. Returns the plaintext verify token for the magic link.
 func CreatePendingLogin(ctx context.Context, user User, db *sqlx.DB, expiry time.Duration) (string, string, error) {
@@ -85,4 +98,24 @@ func IsNewLoginAttempt(ctx context.Context, email string, attemptID string, db *
 		return true, nil
 	}
 	return false, nil
+}
+
+func SendPendingLoginEmail(emailTemplate PendingLoginEmailTemplate, to string, smtpConfig email.SMTPConfig) error {
+	template, err := template.ParseFiles(smtpConfig.EmailTemplatePath + "/login.html")
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.Buffer{}
+	if err := template.Execute(&buf, emailTemplate); err != nil {
+		return err
+	}
+
+	htmlBody := buf.String()
+	emailMessage := email.EmailMessage{
+		To:       to,
+		Subject:  emailTemplate.Subject,
+		HTMLBody: htmlBody,
+	}
+	return email.SendEmail(emailMessage, smtpConfig)
 }

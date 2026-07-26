@@ -20,7 +20,7 @@ func MeHandler(db *sqlx.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.UserFromContext(r.Context())
 		if !ok {
-			web.WriteJSON(w, http.StatusUnauthorized, errorResponse{Error: "Unauthorized."})
+			web.WriteJSON(w, http.StatusUnauthorized, errorResponse{Message: "Unauthorized."})
 			slog.Error("auth.me: user not found in context")
 			return
 		}
